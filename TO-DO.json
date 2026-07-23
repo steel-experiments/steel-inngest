@@ -1,113 +1,196 @@
 {
   "schema_version": 1,
-  "source_files": ["PROJECT.md", "CLAUDE.md"],
+  "source_files": [
+    "PROJECT.md",
+    "CLAUDE.md"
+  ],
   "tasks": [
     {
       "id": "T001",
       "title": "Scaffold package: package.json, tsconfig, tsup, vitest, lockfile",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Peer deps inngest >=4 <5 + steel-sdk; NO optionalDependencies; exports map with types condition FIRST; repository + MIT license fields; files: [dist]; commit package-lock.json. Scripts: test, typecheck, build, example:price-monitor.",
-      "tags": ["packaging"],
-      "files": ["package.json", "tsconfig.json", "tsup.config.ts", "vitest.config.ts"],
-      "created_at": "2026-07-23"
+      "tags": [
+        "packaging"
+      ],
+      "files": [
+        "package.json",
+        "tsconfig.json",
+        "tsup.config.ts",
+        "vitest.config.ts"
+      ],
+      "created_at": "2026-07-23",
+      "updated_at": "2026-07-23"
     },
     {
       "id": "T002",
       "title": "Types: SteelSessionHandle (JSON-only) and options interfaces",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "SteelSessionHandle = { id, connectUrl, viewerUrl } — plain JSON, no client instances. WithSteelSessionOptions and SteelMiddlewareOptions per PROJECT.md § Public API. Compile-time test that the handle type is JSON-serializable.",
-      "tags": ["core"],
-      "files": ["src/types.ts"],
-      "depends_on": ["T001"],
-      "created_at": "2026-07-23"
+      "tags": [
+        "core"
+      ],
+      "files": [
+        "src/types.ts"
+      ],
+      "depends_on": [
+        "T001"
+      ],
+      "created_at": "2026-07-23",
+      "updated_at": "2026-07-23"
     },
     {
       "id": "T003",
       "title": "withSteelSession: durable lifecycle wrapper (TDD)",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Unit tests first with fake step + Steel SDK double. Done when every item under PROJECT.md § Acceptance criteria — withSteelSession passes. Open questions 1–2 are resolved: sessionId = UUIDv5(runId) (no metadata support in steel-sdk), connectUrl = `${session.websocketUrl}&apiKey=${key}`.",
-      "tags": ["core", "tdd"],
-      "files": ["src/session.ts", "test/session.test.ts"],
-      "depends_on": ["T002"],
-      "created_at": "2026-07-23"
+      "tags": [
+        "core",
+        "tdd"
+      ],
+      "files": [
+        "src/session.ts",
+        "test/session.test.ts"
+      ],
+      "depends_on": [
+        "T002"
+      ],
+      "created_at": "2026-07-23",
+      "updated_at": "2026-07-23"
     },
     {
       "id": "T004",
       "title": "steelScrape: one-shot scrape helper (TDD)",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Stateless scrape via client.scrape({ url }) returning { html, markdown, title, statusCode } per PROJECT.md § Public API. Unit tests: result mapping with null-safe fallbacks, key resolution, baseUrl passthrough.",
-      "tags": ["core", "tdd"],
-      "files": ["src/scrape.ts", "test/scrape.test.ts"],
-      "depends_on": ["T002"],
-      "created_at": "2026-07-23"
+      "tags": [
+        "core",
+        "tdd"
+      ],
+      "files": [
+        "src/scrape.ts",
+        "test/scrape.test.ts"
+      ],
+      "depends_on": [
+        "T002"
+      ],
+      "created_at": "2026-07-23",
+      "updated_at": "2026-07-23"
     },
     {
       "id": "T005",
       "title": "steelMiddleware: v4 DI middleware factory (TDD)",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Factory returning Middleware.BaseMiddleware subclass; transformFunctionInput injects typed ctx.steel; copy @inngest/middleware-sentry structure (export factory AND raw class). Done when PROJECT.md § Acceptance criteria — steelMiddleware passes. Open questions 3–4 resolved: @inngest/test@^1.0.0 runs middleware; collisions = last-middleware-wins, document, no warning.",
-      "tags": ["core", "tdd"],
-      "files": ["src/middleware.ts", "test/middleware.test.ts"],
-      "depends_on": ["T002"],
-      "created_at": "2026-07-23"
+      "tags": [
+        "core",
+        "tdd"
+      ],
+      "files": [
+        "src/middleware.ts",
+        "test/middleware.test.ts"
+      ],
+      "depends_on": [
+        "T002"
+      ],
+      "created_at": "2026-07-23",
+      "updated_at": "2026-07-23"
     },
     {
       "id": "T006",
       "title": "Public barrel export + build verification",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "src/index.ts exports the three primitives + types. Verify tsup output (cjs/esm/dts) and that a consumer project resolves types under moduleResolution bundler AND node16 (requires the types condition first in the exports map).",
-      "tags": ["packaging"],
-      "files": ["src/index.ts"],
-      "depends_on": ["T003", "T004", "T005"],
-      "created_at": "2026-07-23"
+      "tags": [
+        "packaging"
+      ],
+      "files": [
+        "src/index.ts"
+      ],
+      "depends_on": [
+        "T003",
+        "T004",
+        "T005"
+      ],
+      "created_at": "2026-07-23",
+      "updated_at": "2026-07-23"
     },
     {
       "id": "T007",
       "title": "examples/price-monitor.ts + e2e test against Inngest dev server",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "Cron function using steelMiddleware + withSteelSession + playwright-core (devDependency only), per the ratified pitch code sample. Runs against real Steel with STEEL_API_KEY and the Inngest dev server. This is the e2e tier of the test policy.",
-      "tags": ["example", "e2e"],
-      "files": ["examples/price-monitor.ts", ".env.example"],
-      "depends_on": ["T006"],
-      "created_at": "2026-07-23"
+      "tags": [
+        "example",
+        "e2e"
+      ],
+      "files": [
+        "examples/price-monitor.ts",
+        ".env.example"
+      ],
+      "depends_on": [
+        "T006"
+      ],
+      "created_at": "2026-07-23",
+      "updated_at": "2026-07-23"
     },
     {
       "id": "T008",
       "title": "README: quickstart, lifecycle semantics, security caveat",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "Problem → install → price-monitor sample → what withSteelSession guarantees (create-once, release-on-success, timeout backstop) → 'What it doesn't do' section → connectUrl-embeds-key warning (never return the handle from a step or log it). Reuse ratified pitch copy; pitch itself is RED-gated for external publishing.",
-      "tags": ["docs"],
-      "files": ["README.md"],
-      "depends_on": ["T006"],
-      "created_at": "2026-07-23"
+      "tags": [
+        "docs"
+      ],
+      "files": [
+        "README.md"
+      ],
+      "depends_on": [
+        "T006"
+      ],
+      "created_at": "2026-07-23",
+      "updated_at": "2026-07-23"
     },
     {
       "id": "T009",
       "title": "Publish prep: npm pack dry-run, version 0.2.0, tag",
       "priority": 4,
-      "status": "todo",
+      "status": "done",
       "details": "npm pack --dry-run to inspect the tarball (dist only, dts present); confirm peer-dep ranges install cleanly against inngest@4 latest; decide npm publish timing with Niko (do not publish without explicit go).",
-      "tags": ["packaging", "release"],
-      "depends_on": ["T007", "T008"],
-      "created_at": "2026-07-23"
+      "tags": [
+        "packaging",
+        "release"
+      ],
+      "depends_on": [
+        "T007",
+        "T008"
+      ],
+      "created_at": "2026-07-23",
+      "updated_at": "2026-07-23"
     },
     {
       "id": "T010",
       "title": "Docs handoff: steel-inngest integrations page next to AgentKit",
       "priority": 4,
-      "status": "todo",
+      "status": "done",
       "details": "Draft an integrations page for the steel docs repo (../docs, content/docs/integrations/) mirroring agentkit.mdx structure; link the cookbook recipe's session-reuse advice to the package. External copy naming Inngest is RED-gated — route through founder review.",
-      "tags": ["docs", "red-gate"],
-      "depends_on": ["T008"],
-      "created_at": "2026-07-23"
+      "tags": [
+        "docs",
+        "red-gate"
+      ],
+      "depends_on": [
+        "T008"
+      ],
+      "created_at": "2026-07-23",
+      "updated_at": "2026-07-23"
     }
   ]
 }

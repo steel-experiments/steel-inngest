@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.local
+*.log
+*.tgz
+.DS_Store
+
+# Local agent/loop state (not project content)
+.claude/

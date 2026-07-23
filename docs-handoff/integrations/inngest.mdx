@@ -1,0 +1,91 @@
+---
+title: "Inngest"
+description: "Run Steel browser sessions as durable Inngest steps."
+---
+
+{/* RED-GATED DRAFT — DO NOT PUBLISH WITHOUT FOUNDER REVIEW.
+
+    This page names a third party (Inngest) and is external marketing copy. Per
+    PROJECT.md and the 2026-07-23 planning decision, all external copy that names
+    Inngest is RED-gated and must route through founder review before it ships to
+    the steel docs site (../docs, content/docs/integrations/). Treat the framing
+    below as a starting point for that review, not final copy.
+
+    Source of truth for the integration: this repo's PROJECT.md + README.md.
+    Package: steel-inngest (npm), v0.2.0. */}
+
+# Inngest
+
+Run Steel browser sessions as durable [Inngest](https://www.inngest.com) steps. Browser automation
+jobs fail in the middle — with the [`steel-inngest`](https://www.npmjs.com/package/steel-inngest)
+package, a crashed run resumes from the last completed step, and no Steel session outlives its run.
+
+This productizes the "reuse sessions across tools" pattern from the
+[AgentKit cookbook](/cookbook/agentkit): one package owns the create → connect → work → release
+lifecycle so you don't have to wire it into a retry-driven, checkpointed execution model by hand.
+
+## Install
+
+```bash
+npm install steel-inngest steel-sdk inngest
+```
+
+Set your Steel API key:
+
+```bash
+export STEEL_API_KEY=ste-...
+```
+
+## Quickstart
+
+Inject the Steel client as `ctx.steel` with middleware, then wrap your browser work in
+`withSteelSession`:
+
+```tsx
+import { chromium } from "playwright-core";
+import { Inngest } from "inngest";
+import { steelMiddleware, withSteelSession } from "steel-inngest";
+
+const inngest = new Inngest({
+  id: "price-monitor",
+  middleware: [steelMiddleware({ apiKey: process.env.STEEL_API_KEY })],
+});
+
+export const checkPrice = inngest.createFunction(
+  { id: "check-price", triggers: { cron: "*/5 * * * *" } },
+  async ({ step, steel, runId }) =>
+    withSteelSession(step, { steel, runId }, async (session) => {
+      const browser = await chromium.connectOverCDP(session.connectUrl);
+      try {
+        return await step.run("read-price", async () => {
+          const page = await browser.newPage();
+          await page.goto("https://books.toscrape.com/");
+          const price = await page.locator(".product_pod .price_color").first().textContent();
+          await page.close();
+          return price?.trim() ?? null;
+        });
+      } finally {
+        await browser.close(); // close the connection, not the session
+      }
+    }),
+);
+```
+
+You bring your own driver: the handle gives you a CDP `connectUrl`, and Playwright or Puppeteer
+connects to it — exactly the session-reuse approach from the
+[AgentKit cookbook](/cookbook/agentkit).
+
+## What it guarantees
+
+- **Create exactly once.** Session creation is a memoized step, so retries and replays never spawn
+  a second session.
+- **Release on success.** A final step releases the session after your handler resolves. If the
+  handler throws, the error propagates unchanged and no release is attempted.
+- **Every session has a finite timeout.** A crashed run can't leak a session — orphaned sessions
+  self-expire (default 5 minutes).
+
+## Learn more
+
+- [npm: steel-inngest](https://www.npmjs.com/package/steel-inngest)
+- [Inngest docs](https://www.inngest.com/docs)
+- [AgentKit cookbook](/cookbook/agentkit) — the session-reuse pattern this builds on

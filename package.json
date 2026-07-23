@@ -1,0 +1,64 @@
+{
+  "name": "steel-inngest",
+  "version": "0.2.0",
+  "description": "Durable Steel browser sessions inside Inngest functions.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "build": "tsup",
+    "example:price-monitor": "tsx --env-file-if-exists=.env examples/price-monitor.ts"
+  },
+  "peerDependencies": {
+    "inngest": ">=4 <5",
+    "steel-sdk": "^0.18.0"
+  },
+  "devDependencies": {
+    "@inngest/test": "^1.0.0",
+    "inngest": "^4.0.0",
+    "playwright-core": "^1.49.0",
+    "steel-sdk": "^0.18.0",
+    "tsup": "^8.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steel-dev/steel-inngest.git"
+  },
+  "homepage": "https://github.com/steel-dev/steel-inngest#readme",
+  "bugs": {
+    "url": "https://github.com/steel-dev/steel-inngest/issues"
+  },
+  "keywords": [
+    "steel",
+    "inngest",
+    "browser",
+    "automation",
+    "scraping",
+    "cdp",
+    "playwright",
+    "puppeteer",
+    "durable",
+    "background-job"
+  ]
+}
