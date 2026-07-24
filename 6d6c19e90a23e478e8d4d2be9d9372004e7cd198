@@ -1,0 +1,15 @@
+# Design: Replay-safe Steel session checkpoints
+
+## Problem
+Inngest persists step outputs, so checkpointing the public connection handle exposed the long-lived Steel API key. Replays could also resume with a different API key or base URL and release against the wrong configuration.
+
+## Approach
+Persist API-key-free session metadata plus a one-way fingerprint of the normalized Steel endpoint and credential. Rebuild the public connection URL in memory using URL query encoding, and reject configuration drift before handler execution or release.
+
+## Key Trade-offs
+- The API key, base URL, and complete connectUrl never enter step state.
+- Credential or endpoint rotation during an active run now fails explicitly and relies on the finite session timeout instead of risking a wrong-target release.
+- The SDK-provided websocket URL remains checkpointed because it is required to reconnect without replay-time resource access after release.
+
+## Verification
+81 tests, TypeScript typecheck, ESM/CJS build, packed Bundler and Node16 consumers, runtime import/require, and production audit all pass. The live Steel E2E remains an explicit billable manual gate.
