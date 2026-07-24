@@ -1,0 +1,10 @@
+# Context
+
+## Background
+The first public release needed a shorter path from discovery to a working Inngest function.
+
+## Why this way
+The README now reveals detail in layers: one-line pitch, brief product definitions, install, quickstart, API, then replay and security semantics. Lifecycle caveats remain available without front-loading internal implementation details.
+
+## Related
+Community guidance now covers contributions, private security reports, and conduct.
