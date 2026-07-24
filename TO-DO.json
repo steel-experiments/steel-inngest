@@ -132,11 +132,8 @@
       "id": "T007",
       "title": "examples/price-monitor.ts + e2e test against Inngest dev server",
       "priority": 3,
-      "status": "blocked",
-      "details": "The example is replay-safe and a served, event-triggered Inngest dev-server path is documented and smoke-tested without creating a session. Final completion requires one explicitly authorized billable run against real Steel.",
-      "blockers": [
-        "The real-Steel + Inngest dev-server event must be triggered once with explicit authorization because it creates a potentially billable session."
-      ],
+      "status": "done",
+      "details": "The served example completed a live Steel + Inngest run on 2026-07-24. It scraped Books to Scrape, returned the page title and price, completed the Inngest run, and Steel confirmed the 120-second session was released.",
       "tags": [
         "example",
         "e2e"
@@ -157,7 +154,7 @@
       "title": "README: quickstart, lifecycle semantics, security caveat",
       "priority": 3,
       "status": "done",
-      "details": "README now documents replay-safe per-step connections, checkpoint memoization versus ambiguous retries, bounded timeout cleanup, v4-only/Node 20 requirements, exactly three exports, mutually exclusive client configuration, and (runId, stepPrefix) identity.",
+      "details": "README uses progressive disclosure: a one-line pitch, short Inngest and Steel definitions, install and quickstart, then API, replay, security, live testing, and development details. It retains the lifecycle and credential caveats without leading with internals.",
       "tags": [
         "docs"
       ],
@@ -168,17 +165,16 @@
         "T006"
       ],
       "created_at": "2026-07-23",
-      "updated_at": "2026-07-23"
+      "updated_at": "2026-07-24"
     },
     {
       "id": "T009",
       "title": "Publish prep: npm pack dry-run, version 0.2.0, tag",
       "priority": 4,
       "status": "blocked",
-      "details": "All non-billable local release gates pass. Release remains blocked on the authorized live E2E and explicit approval for external publication actions.",
+      "details": "The live E2E and all local release gates pass, and the release materials are complete. Tagging, pushing, and the GitHub release are authorized. npm publication is blocked because this environment has no npm authentication.",
       "blockers": [
-        "The billable real-Steel + Inngest dev-server E2E requires explicit authorization.",
-        "Tagging, pushing, npm publishing, and external docs publishing require explicit approval."
+        "Authenticate npm with an account allowed to publish the unclaimed steel-inngest package."
       ],
       "tags": [
         "packaging",
@@ -191,7 +187,7 @@
         "T011"
       ],
       "created_at": "2026-07-23",
-      "updated_at": "2026-07-23"
+      "updated_at": "2026-07-24"
     },
     {
       "id": "T010",

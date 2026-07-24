@@ -1,11 +1,14 @@
 node_modules/
 dist/
 coverage/
-.env
-.env.local
+.env*
+!.env.example
 *.log
+*.tsbuildinfo
 *.tgz
 .DS_Store
+.idea/
+.vscode/
 
 # Local agent/loop state (not project content)
 .claude/
