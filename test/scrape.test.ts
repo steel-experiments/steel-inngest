@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { mapScrapeResult, steelScrape } from "../src/scrape.js";
 import { NO_API_KEY_ERROR } from "../src/internal.js";
-import { createFakeSteel } from "./helpers.js";
+import type { SteelScrapeOptions } from "../src/types.js";
+import { createFakeSteel, restoreEnv } from "./helpers.js";
 
 describe("mapScrapeResult (T004)", () => {
   test("maps a full response", () => {
@@ -41,10 +42,10 @@ describe("mapScrapeResult (T004)", () => {
 describe("steelScrape (T004)", () => {
   const SAVED_KEY = process.env.STEEL_API_KEY;
   beforeEach(() => {
-    process.env.STEEL_API_KEY = SAVED_KEY;
+    restoreEnv("STEEL_API_KEY", SAVED_KEY);
   });
   afterEach(() => {
-    process.env.STEEL_API_KEY = SAVED_KEY;
+    restoreEnv("STEEL_API_KEY", SAVED_KEY);
   });
 
   test("calls scrape with { url } and maps the result", async () => {
@@ -76,5 +77,37 @@ describe("steelScrape (T004)", () => {
     // with a string does a substring match. Mirrors session.test.ts so the
     // scrape path is held to the same standard.
     await expect(steelScrape("https://x.example", {})).rejects.toThrow(NO_API_KEY_ERROR);
+  });
+
+  test("the options type rejects steelApiKey/baseUrl alongside steel", () => {
+    const steel = createFakeSteel();
+    const withClient: SteelScrapeOptions = { steel };
+    const withCredentials: SteelScrapeOptions = {
+      steelApiKey: "key",
+      baseUrl: "https://steel.example",
+    };
+
+    // @ts-expect-error A supplied client is mutually exclusive with steelApiKey.
+    const clientAndKey: SteelScrapeOptions = { steel, steelApiKey: "other" };
+    // @ts-expect-error A supplied client is mutually exclusive with baseUrl.
+    const clientAndBaseUrl: SteelScrapeOptions = {
+      steel,
+      baseUrl: "https://other.example",
+    };
+
+    expect([withClient, withCredentials, clientAndKey, clientAndBaseUrl]).toHaveLength(4);
+  });
+
+  test.each([
+    ["steelApiKey", { steelApiKey: "other-key" }],
+    ["baseUrl", { baseUrl: "https://other.example" }],
+  ])("runtime callers cannot pass steel with %s", async (_name, conflict) => {
+    const steel = createFakeSteel();
+    const options = { steel, ...conflict } as unknown as SteelScrapeOptions;
+
+    await expect(steelScrape("https://x.example", options)).rejects.toThrow(
+      /cannot be combined|mutually exclusive/i,
+    );
+    expect(steel.calls.scrape).toHaveLength(0);
   });
 });

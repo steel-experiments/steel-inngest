@@ -1,4 +1,5 @@
 import { describe, expect, expectTypeOf, test } from "vitest";
+import type { Steel } from "steel-sdk";
 import type {
   SteelSessionHandle,
   SteelMiddlewareOptions,
@@ -42,7 +43,7 @@ describe("SteelSessionHandle (T002)", () => {
 });
 
 describe("option interfaces (T002)", () => {
-  test("WithSteelSessionOptions has the expected optional fields", () => {
+  test("WithSteelSessionOptions supports either a client or client configuration", () => {
     expectTypeOf<WithSteelSessionOptions>().toMatchTypeOf<{
       steel?: unknown;
       apiKey?: string;
@@ -53,6 +54,22 @@ describe("option interfaces (T002)", () => {
       solveCaptcha?: boolean;
       stepPrefix?: string;
     }>();
+
+    const steel = {} as Steel;
+    const withClient: WithSteelSessionOptions = { steel };
+    const withConfiguration: WithSteelSessionOptions = {
+      apiKey: "key",
+      baseUrl: "https://steel.example",
+    };
+    // @ts-expect-error A supplied client is mutually exclusive with apiKey.
+    const withBothKey: WithSteelSessionOptions = { steel, apiKey: "other" };
+    // @ts-expect-error A supplied client is mutually exclusive with baseUrl.
+    const withBothUrl: WithSteelSessionOptions = {
+      steel,
+      baseUrl: "https://other.example",
+    };
+
+    expect([withClient, withConfiguration, withBothKey, withBothUrl]).toHaveLength(4);
   });
 
   test("SteelMiddlewareOptions is { apiKey?, baseUrl? }", () => {
@@ -62,11 +79,27 @@ describe("option interfaces (T002)", () => {
     }>();
   });
 
-  test("SteelScrapeOptions honors steelApiKey + baseUrl", () => {
+  test("SteelScrapeOptions supports either a client or client configuration", () => {
     expectTypeOf<SteelScrapeOptions>().toMatchTypeOf<{
       steelApiKey?: string;
       baseUrl?: string;
     }>();
+
+    const steel = {} as Steel;
+    const withClient: SteelScrapeOptions = { steel };
+    const withConfiguration: SteelScrapeOptions = {
+      steelApiKey: "key",
+      baseUrl: "https://steel.example",
+    };
+    // @ts-expect-error A supplied client is mutually exclusive with steelApiKey.
+    const withBothKey: SteelScrapeOptions = { steel, steelApiKey: "other" };
+    // @ts-expect-error A supplied client is mutually exclusive with baseUrl.
+    const withBothUrl: SteelScrapeOptions = {
+      steel,
+      baseUrl: "https://other.example",
+    };
+
+    expect([withClient, withConfiguration, withBothKey, withBothUrl]).toHaveLength(4);
   });
 
   test("SteelScrapeResult is all JSON primitives", () => {

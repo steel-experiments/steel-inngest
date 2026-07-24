@@ -16,7 +16,8 @@ export const DEFAULT_STEP_PREFIX = "steel";
 /**
  * Fixed package namespace UUID used to derive deterministic Steel session IDs
  * via UUIDv5. Any valid UUID works as a namespace; this one is fixed for the
- * package so the same `runId` always maps to the same session ID.
+ * package so the same `(runId, stepPrefix)` pair always maps to the same
+ * session ID.
  */
 export const STEEL_NAMESPACE_UUID = "2f8e3c91-7b4d-4e6a-9c5f-1a2b3c4d5e6f";
 
@@ -26,6 +27,39 @@ export const STEEL_NAMESPACE_UUID = "2f8e3c91-7b4d-4e6a-9c5f-1a2b3c4d5e6f";
  */
 export const NO_API_KEY_ERROR =
   "steel-inngest: No Steel API key found. Pass `apiKey` (or `steelApiKey`) in options, or set the STEEL_API_KEY environment variable.";
+
+/**
+ * Error thrown when a replay is configured with a different Steel endpoint or
+ * credential than the invocation that created the session.
+ */
+export const SESSION_CONFIG_CHANGED_ERROR =
+  "steel-inngest: Steel configuration changed after the session was created. Keep the API key and base URL stable for the lifetime of an Inngest run.";
+
+/**
+ * Reject ambiguous client configuration from untyped JavaScript callers.
+ *
+ * TypeScript callers are protected by the public options unions, but runtime
+ * validation keeps plain JavaScript and cast values from silently using one
+ * client's REST credentials with different URL credentials.
+ */
+export function assertExclusiveSteelClient(
+  options: {
+    readonly steel?: unknown;
+    readonly apiKey?: unknown;
+    readonly steelApiKey?: unknown;
+    readonly baseUrl?: unknown;
+  },
+  apiKeyOption: "apiKey" | "steelApiKey",
+): void {
+  if (
+    options.steel !== undefined &&
+    (options[apiKeyOption] !== undefined || options.baseUrl !== undefined)
+  ) {
+    throw new Error(
+      `steel-inngest: \`steel\` cannot be combined with \`${apiKeyOption}\` or \`baseUrl\`; pass either a pre-built client or client configuration.`,
+    );
+  }
+}
 
 /**
  * Resolve a Steel API key from (in order) an explicit option, the
@@ -68,7 +102,22 @@ export function createSteelClient(options: {
  * key and must be treated as a secret.
  */
 export function buildConnectUrl(websocketUrl: string, apiKey: string): string {
-  return `${websocketUrl}&apiKey=${apiKey}`;
+  const url = new URL(websocketUrl);
+  url.searchParams.set("apiKey", apiKey);
+  return url.toString();
+}
+
+/**
+ * Create a one-way identifier for the Steel endpoint and API key so replay can
+ * detect configuration drift without storing either value in Inngest state.
+ */
+export function fingerprintSessionConfiguration(
+  baseUrl: string,
+  apiKey: string,
+): string {
+  return createHash("sha256")
+    .update(JSON.stringify([baseUrl, apiKey]))
+    .digest("hex");
 }
 
 /**
@@ -90,11 +139,15 @@ export function resolveTimeout(timeoutMs?: number): number {
 }
 
 /**
- * Derive a deterministic Steel session ID from an Inngest run ID using UUIDv5
- * under the package namespace. The same `runId` always produces the same ID.
+ * Derive a deterministic Steel session ID from an Inngest run ID and step
+ * prefix using UUIDv5 under the package namespace. The pair is JSON-encoded so
+ * arbitrary values cannot collide through delimiter ambiguity.
  */
-export function deriveSessionId(runId: string): string {
-  return uuidV5(runId, STEEL_NAMESPACE_UUID);
+export function deriveSessionId(
+  runId: string,
+  stepPrefix = DEFAULT_STEP_PREFIX,
+): string {
+  return uuidV5(JSON.stringify([runId, stepPrefix]), STEEL_NAMESPACE_UUID);
 }
 
 /**

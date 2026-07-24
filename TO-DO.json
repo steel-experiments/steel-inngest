@@ -10,7 +10,7 @@
       "title": "Scaffold package: package.json, tsconfig, tsup, vitest, lockfile",
       "priority": 1,
       "status": "done",
-      "details": "Peer deps inngest >=4 <5 + steel-sdk; NO optionalDependencies; exports map with types condition FIRST; repository + MIT license fields; files: [dist]; commit package-lock.json. Scripts: test, typecheck, build, example:price-monitor.",
+      "details": "Node 20+, peer deps inngest >=4 <5 + steel-sdk ^0.18.0; no optionalDependencies; nested import/require export conditions; actual-origin repository + MIT license; files: [dist]; committed lockfile and build/test/example scripts.",
       "tags": [
         "packaging"
       ],
@@ -28,7 +28,7 @@
       "title": "Types: SteelSessionHandle (JSON-only) and options interfaces",
       "priority": 1,
       "status": "done",
-      "details": "SteelSessionHandle = { id, connectUrl, viewerUrl } — plain JSON, no client instances. WithSteelSessionOptions and SteelMiddlewareOptions per PROJECT.md § Public API. Compile-time test that the handle type is JSON-serializable.",
+      "details": "SteelSessionHandle = { id, connectUrl, viewerUrl } — plain JSON, no client instances. Session and scrape options use mutually exclusive supplied-client versus constructed-client modes. Compile-time tests cover JSON serialization and invalid option combinations.",
       "tags": [
         "core"
       ],
@@ -46,14 +46,17 @@
       "title": "withSteelSession: durable lifecycle wrapper (TDD)",
       "priority": 1,
       "status": "done",
-      "details": "Unit tests first with fake step + Steel SDK double. Done when every item under PROJECT.md § Acceptance criteria — withSteelSession passes. Open questions 1–2 are resolved: sessionId = UUIDv5(runId) (no metadata support in steel-sdk), connectUrl = `${session.websocketUrl}&apiKey=${key}`.",
+      "details": "Real @inngest/test replay coverage now proves create → connect/work/close inside one step → release with no post-release resource use. Supplied-client credentials are authoritative, conflicting client configuration is rejected, and sessionId derives deterministically from (runId, stepPrefix).",
       "tags": [
         "core",
         "tdd"
       ],
       "files": [
+        "src/internal.ts",
         "src/session.ts",
-        "test/session.test.ts"
+        "src/types.ts",
+        "test/session.test.ts",
+        "test/session.integration.test.ts"
       ],
       "depends_on": [
         "T002"
@@ -66,7 +69,7 @@
       "title": "steelScrape: one-shot scrape helper (TDD)",
       "priority": 2,
       "status": "done",
-      "details": "Stateless scrape via client.scrape({ url }) returning { html, markdown, title, statusCode } per PROJECT.md § Public API. Unit tests: result mapping with null-safe fallbacks, key resolution, baseUrl passthrough.",
+      "details": "Stateless scrape via client.scrape({ url }) returning { html, markdown, title, statusCode }. Unit tests cover null-safe mapping, key/baseUrl handling, and compile-time/runtime rejection of conflicting supplied-client configuration.",
       "tags": [
         "core",
         "tdd"
@@ -86,7 +89,7 @@
       "title": "steelMiddleware: v4 DI middleware factory (TDD)",
       "priority": 2,
       "status": "done",
-      "details": "Factory returning Middleware.BaseMiddleware subclass; transformFunctionInput injects typed ctx.steel; copy @inngest/middleware-sentry structure (export factory AND raw class). Done when PROJECT.md § Acceptance criteria — steelMiddleware passes. Open questions 3–4 resolved: @inngest/test@^1.0.0 runs middleware; collisions = last-middleware-wins, document, no warning.",
+      "details": "Public factory returns a Middleware.BaseMiddleware subclass and transformFunctionInput injects typed ctx.steel. The raw class remains internal so the package root has exactly three runtime exports. @inngest/test covers middleware execution; ctx collisions remain last-middleware-wins.",
       "tags": [
         "core",
         "tdd"
@@ -106,12 +109,16 @@
       "title": "Public barrel export + build verification",
       "priority": 2,
       "status": "done",
-      "details": "src/index.ts exports the three primitives + types. Verify tsup output (cjs/esm/dts) and that a consumer project resolves types under moduleResolution bundler AND node16 (requires the types condition first in the exports map).",
+      "details": "Package root exports exactly the three promised primitives. Nested import/require branches select matching .d.ts/.d.cts declarations. The isolated packed-consumer gate passes Bundler, Node16 ESM/CJS, and runtime import/require.",
       "tags": [
         "packaging"
       ],
       "files": [
-        "src/index.ts"
+        "src/index.ts",
+        "package.json",
+        "scripts/verify-package.mjs",
+        "test/package.test.ts",
+        "test/fixtures/package-consumer"
       ],
       "depends_on": [
         "T003",
@@ -125,14 +132,18 @@
       "id": "T007",
       "title": "examples/price-monitor.ts + e2e test against Inngest dev server",
       "priority": 3,
-      "status": "done",
-      "details": "Cron function using steelMiddleware + withSteelSession + playwright-core (devDependency only), per the ratified pitch code sample. Runs against real Steel with STEEL_API_KEY and the Inngest dev server. This is the e2e tier of the test policy.",
+      "status": "blocked",
+      "details": "The example is replay-safe and a served, event-triggered Inngest dev-server path is documented and smoke-tested without creating a session. Final completion requires one explicitly authorized billable run against real Steel.",
+      "blockers": [
+        "The real-Steel + Inngest dev-server event must be triggered once with explicit authorization because it creates a potentially billable session."
+      ],
       "tags": [
         "example",
         "e2e"
       ],
       "files": [
         "examples/price-monitor.ts",
+        "examples/server.ts",
         ".env.example"
       ],
       "depends_on": [
@@ -146,7 +157,7 @@
       "title": "README: quickstart, lifecycle semantics, security caveat",
       "priority": 3,
       "status": "done",
-      "details": "Problem → install → price-monitor sample → what withSteelSession guarantees (create-once, release-on-success, timeout backstop) → 'What it doesn't do' section → connectUrl-embeds-key warning (never return the handle from a step or log it). Reuse ratified pitch copy; pitch itself is RED-gated for external publishing.",
+      "details": "README now documents replay-safe per-step connections, checkpoint memoization versus ambiguous retries, bounded timeout cleanup, v4-only/Node 20 requirements, exactly three exports, mutually exclusive client configuration, and (runId, stepPrefix) identity.",
       "tags": [
         "docs"
       ],
@@ -163,15 +174,21 @@
       "id": "T009",
       "title": "Publish prep: npm pack dry-run, version 0.2.0, tag",
       "priority": 4,
-      "status": "done",
-      "details": "npm pack --dry-run to inspect the tarball (dist only, dts present); confirm peer-dep ranges install cleanly against inngest@4 latest; decide npm publish timing with Niko (do not publish without explicit go).",
+      "status": "blocked",
+      "details": "All non-billable local release gates pass. Release remains blocked on the authorized live E2E and explicit approval for external publication actions.",
+      "blockers": [
+        "The billable real-Steel + Inngest dev-server E2E requires explicit authorization.",
+        "Tagging, pushing, npm publishing, and external docs publishing require explicit approval."
+      ],
       "tags": [
         "packaging",
         "release"
       ],
       "depends_on": [
         "T007",
-        "T008"
+        "T008",
+        "T010",
+        "T011"
       ],
       "created_at": "2026-07-23",
       "updated_at": "2026-07-23"
@@ -181,16 +198,80 @@
       "title": "Docs handoff: steel-inngest integrations page next to AgentKit",
       "priority": 4,
       "status": "done",
-      "details": "Draft an integrations page for the steel docs repo (../docs, content/docs/integrations/) mirroring agentkit.mdx structure; link the cookbook recipe's session-reuse advice to the package. External copy naming Inngest is RED-gated — route through founder review.",
+      "details": "The local red-gated draft mirrors the corrected replay-safe lifecycle, bounded cleanup guarantees, client configuration, and session identity. External publication still requires founder review.",
       "tags": [
         "docs",
         "red-gate"
+      ],
+      "files": [
+        "docs-handoff/integrations/inngest.mdx"
       ],
       "depends_on": [
         "T008"
       ],
       "created_at": "2026-07-23",
       "updated_at": "2026-07-23"
+    },
+    {
+      "id": "T011",
+      "title": "CI and release verification matrix",
+      "priority": 3,
+      "status": "done",
+      "details": "Node 20 CI covers pristine tests, typecheck, build, packed Bundler/Node16 ESM/Node16 CJS consumers, runtime import/require, pack inspection, and production audit. Local clean-install execution passes every gate; the billable E2E remains manual.",
+      "tags": [
+        "ci",
+        "packaging",
+        "release"
+      ],
+      "files": [
+        ".github/workflows/ci.yml",
+        "package.json",
+        "scripts/verify-package.mjs",
+        "test/fixtures/package-consumer"
+      ],
+      "depends_on": [
+        "T003",
+        "T006",
+        "T008"
+      ],
+      "created_at": "2026-07-23",
+      "updated_at": "2026-07-23"
+    },
+    {
+      "id": "T012",
+      "title": "Harden durable session credentials and replay behavior",
+      "priority": 1,
+      "status": "done",
+      "details": "The create checkpoint now excludes the API key, base URL, and connectUrl, retaining only session metadata and a one-way configuration fingerprint. Replay rejects endpoint or credential drift before user work or release, URL query parameters are encoded safely, and test environment restoration deletes originally missing variables. The real @inngest/test state assertion and all non-billable release gates pass.",
+      "steps": [
+        "Add failing regression tests for secret-free checkpoints, replay-stable release configuration, URL encoding, and environment restoration.",
+        "Refactor the session checkpoint and client configuration flow without persisting credentials.",
+        "Run all non-billable release gates."
+      ],
+      "tags": [
+        "security",
+        "core",
+        "tdd"
+      ],
+      "files": [
+        "src/internal.ts",
+        "src/session.ts",
+        "src/types.ts",
+        "README.md",
+        "PROJECT.md",
+        "CLAUDE.md",
+        "docs-handoff/integrations/inngest.mdx",
+        "test/internal.test.ts",
+        "test/helpers.ts",
+        "test/session.test.ts",
+        "test/session.integration.test.ts"
+      ],
+      "depends_on": [
+        "T003",
+        "T011"
+      ],
+      "created_at": "2026-07-24",
+      "updated_at": "2026-07-24"
     }
   ]
 }

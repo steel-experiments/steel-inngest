@@ -1,13 +1,31 @@
 import { type Middleware } from "inngest";
 import type { SteelSessionHandle, WithSteelSessionOptions } from "./types.js";
 import {
+  assertExclusiveSteelClient,
   buildConnectUrl,
   createSteelClient,
   DEFAULT_STEP_PREFIX,
   deriveSessionId,
+  fingerprintSessionConfiguration,
+  NO_API_KEY_ERROR,
   resolveApiKey,
   resolveTimeout,
+  SESSION_CONFIG_CHANGED_ERROR,
 } from "./internal.js";
+
+/**
+ * API-key-free data persisted by the create step.
+ *
+ * `configurationFingerprint` detects endpoint or credential drift across
+ * replay without storing either value. `websocketUrl` comes from Steel and is
+ * not augmented with the long-lived API credential.
+ */
+interface SteelSessionCheckpoint {
+  readonly id: string;
+  readonly websocketUrl: string;
+  readonly viewerUrl: string | null;
+  readonly configurationFingerprint: string;
+}
 
 /**
  * Run a handler inside a durable Steel browser session, with the session
@@ -22,8 +40,9 @@ import {
  *
  * @remarks
  * Lifecycle, in order:
- * 1. `step.run("<prefix>/create-session")` — creates the session exactly once
- *    (memoized across retries/replays) with a mandatory finite timeout.
+ * 1. `step.run("<prefix>/create-session")` — creates the session with a
+ *    mandatory finite timeout. A successful result is memoized across replay;
+ *    the callback itself may retry before that checkpoint succeeds.
  * 2. `await handler(handle)` — your work. If it throws, the error propagates
  *    **untouched**: no release is attempted (Inngest checkpoints by throwing
  *    interrupts through user code; a `try/finally` would fire mid-run).
@@ -36,12 +55,14 @@ import {
  * @example
  * ```ts
  * await withSteelSession(step, { runId: ctx.runId }, async (session) => {
- *   const browser = await chromium.connectOverCDP(session.connectUrl);
- *   try {
- *     // ...do work in steps...
- *   } finally {
- *     await browser.close(); // close the *connection*, not the session
- *   }
+ *   return step.run("browser-work", async () => {
+ *     const browser = await chromium.connectOverCDP(session.connectUrl);
+ *     try {
+ *       // ...use the browser...
+ *     } finally {
+ *       await browser.close(); // close the *connection*, not the session
+ *     }
+ *   });
  * });
  * ```
  */
@@ -50,6 +71,8 @@ export async function withSteelSession<T>(
   options: WithSteelSessionOptions,
   handler: (session: SteelSessionHandle) => Promise<T>,
 ): Promise<T> {
+  assertExclusiveSteelClient(options, "apiKey");
+
   const prefix = options.stepPrefix ?? DEFAULT_STEP_PREFIX;
   // Validate the timeout up front so an invalid value fails fast without
   // creating a session.
@@ -58,13 +81,29 @@ export async function withSteelSession<T>(
   const createStepId = `${prefix}/create-session`;
   const releaseStepId = `${prefix}/release-session`;
 
-  // 1. Create the session in a memoized step — exactly-once across retries.
-  const handle: SteelSessionHandle = await step.run(createStepId, async () => {
-    const client =
-      options.steel ?? createSteelClient({ apiKey: options.apiKey, baseUrl: options.baseUrl });
+  const client =
+    options.steel ??
+    createSteelClient({ apiKey: options.apiKey, baseUrl: options.baseUrl });
 
-    const apiKey = resolveApiKey(options.apiKey, options.steel?.steelAPIKey);
+  // A supplied client is authoritative: its REST calls and the in-memory CDP
+  // URL must use the same credential, regardless of the ambient environment.
+  const apiKey =
+    options.steel !== undefined
+      ? options.steel.steelAPIKey
+      : resolveApiKey(options.apiKey);
+  if (!apiKey) {
+    throw new Error(NO_API_KEY_ERROR);
+  }
 
+  const baseUrl = client.baseURL;
+  const configurationFingerprint = fingerprintSessionConfiguration(
+    baseUrl,
+    apiKey,
+  );
+
+  // 1. Create the session in a step. Inngest memoizes a successful checkpoint;
+  //    the callback itself may retry before that checkpoint succeeds.
+  const checkpoint: SteelSessionCheckpoint = await step.run(createStepId, async () => {
     const session = await client.sessions.create({
       timeout: timeoutMs,
       ...(options.useProxy !== undefined ? { useProxy: options.useProxy } : {}),
@@ -72,16 +111,31 @@ export async function withSteelSession<T>(
         ? { solveCaptcha: options.solveCaptcha }
         : {}),
       ...(options.runId !== undefined
-        ? { sessionId: deriveSessionId(options.runId) }
+        ? { sessionId: deriveSessionId(options.runId, prefix) }
         : {}),
     });
 
     return {
       id: session.id,
-      connectUrl: buildConnectUrl(session.websocketUrl, apiKey),
+      websocketUrl: session.websocketUrl,
       viewerUrl: session.sessionViewerUrl || null,
+      configurationFingerprint,
     };
   });
+
+  // A run can resume in another request or deployment. Refuse to connect or
+  // release with configuration that does not match the create checkpoint.
+  if (checkpoint.configurationFingerprint !== configurationFingerprint) {
+    throw new Error(SESSION_CONFIG_CHANGED_ERROR);
+  }
+
+  // Build the credential-bearing URL only in memory. It is passed to the
+  // handler but is never returned from an internal step.
+  const handle: SteelSessionHandle = {
+    id: checkpoint.id,
+    connectUrl: buildConnectUrl(checkpoint.websocketUrl, apiKey),
+    viewerUrl: checkpoint.viewerUrl,
+  };
 
   // 2. Run the user's handler. If it throws, propagate untouched — NO release
   //    (see hard constraint #3).
@@ -89,8 +143,6 @@ export async function withSteelSession<T>(
 
   // 3. Release the session on success only.
   await step.run(releaseStepId, async () => {
-    const client =
-      options.steel ?? createSteelClient({ apiKey: options.apiKey, baseUrl: options.baseUrl });
     await client.sessions.release(handle.id);
     return { released: true, id: handle.id };
   });

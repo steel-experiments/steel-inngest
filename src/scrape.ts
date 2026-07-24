@@ -1,5 +1,8 @@
 import type { SteelScrapeOptions, SteelScrapeResult } from "./types.js";
-import { createSteelClient } from "./internal.js";
+import {
+  assertExclusiveSteelClient,
+  createSteelClient,
+} from "./internal.js";
 
 /**
  * Structural view of the Steel `scrape()` response. Decoupled from the SDK's
@@ -31,6 +34,8 @@ export async function steelScrape(
   url: string,
   options: SteelScrapeOptions = {},
 ): Promise<SteelScrapeResult> {
+  assertExclusiveSteelClient(options, "steelApiKey");
+
   const client =
     options.steel ??
     createSteelClient({ apiKey: options.steelApiKey, baseUrl: options.baseUrl });

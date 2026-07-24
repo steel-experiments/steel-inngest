@@ -38,8 +38,14 @@ export interface CreateFakeSteelOptions {
   scrapeResponse?: Record<string, unknown>;
   /** The `steelAPIKey` the client reports (used for connectUrl fallback). */
   steelAPIKey?: string | null;
+  /** The REST API base URL the client reports. */
+  baseURL?: string;
   /** A counter-backed id generator; default increments `sess-N`. */
   nextId?: () => string;
+  /** Observe session creation in lifecycle/integration tests. */
+  onCreate?: (params: Record<string, unknown>) => void;
+  /** Observe session release in lifecycle/integration tests. */
+  onRelease?: (id: string) => void;
 }
 
 /**
@@ -53,10 +59,13 @@ export function createFakeSteel(options: CreateFakeSteelOptions = {}): FakeSteel
 
   const fake = {
     calls,
-    steelAPIKey: options.steelAPIKey ?? "test-key",
+    baseURL: options.baseURL ?? "https://api.steel.dev",
+    steelAPIKey:
+      options.steelAPIKey === undefined ? "test-key" : options.steelAPIKey,
     sessions: {
       async create(params: Record<string, unknown>): Promise<FakeSteelSession> {
         calls.create.push({ params });
+        options.onCreate?.(params);
         const id = options.session?.id ?? nextId();
         return {
           id,
@@ -71,6 +80,7 @@ export function createFakeSteel(options: CreateFakeSteelOptions = {}): FakeSteel
       },
       async release(id: string): Promise<{ id: string; status: string }> {
         calls.release.push({ id });
+        options.onRelease?.(id);
         return { id, status: "released" };
       },
     },
@@ -99,6 +109,8 @@ export function createFakeSteel(options: CreateFakeSteelOptions = {}): FakeSteel
 export interface FakeStep {
   /** Ordered log of every `run` call and whether its handler executed. */
   runs: { id: string; executed: boolean }[];
+  /** Read a memoized result without executing a step. */
+  getMemo: (id: string) => unknown;
   run: (id: string, fn: () => Promise<unknown> | unknown) => Promise<unknown>;
 }
 
@@ -107,6 +119,9 @@ export function createFakeStep(seeds: Record<string, unknown> = {}): FakeStep {
   const runs: FakeStep["runs"] = [];
   return {
     runs,
+    getMemo(id) {
+      return memo.get(id);
+    },
     async run(id, fn) {
       if (memo.has(id)) {
         runs.push({ id, executed: false });
@@ -118,4 +133,16 @@ export function createFakeStep(seeds: Record<string, unknown> = {}): FakeStep {
       return result;
     },
   };
+}
+
+/** Restore an environment variable without converting `undefined` to text. */
+export function restoreEnv(
+  name: string,
+  value: string | undefined,
+): void {
+  if (value === undefined) {
+    delete process.env[name];
+  } else {
+    process.env[name] = value;
+  }
 }

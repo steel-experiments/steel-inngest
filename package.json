@@ -9,20 +9,27 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "test": "vitest run",
+    "test": "npm run typecheck && vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "build": "tsup",
-    "example:price-monitor": "tsx --env-file-if-exists=.env examples/price-monitor.ts"
+    "check:package": "npm run build && node scripts/verify-package.mjs",
+    "example:price-monitor": "npm run example:server",
+    "example:server": "tsx --env-file-if-exists=.env examples/server.ts"
   },
   "peerDependencies": {
     "inngest": ">=4 <5",
@@ -38,16 +45,19 @@
     "typescript": "^5.6.0",
     "vitest": "^3.0.0"
   },
+  "overrides": {
+    "esbuild": "^0.28.1"
+  },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/steel-dev/steel-inngest.git"
+    "url": "git+https://github.com/steel-experiments/steel-inngest.git"
   },
-  "homepage": "https://github.com/steel-dev/steel-inngest#readme",
+  "homepage": "https://github.com/steel-experiments/steel-inngest#readme",
   "bugs": {
-    "url": "https://github.com/steel-dev/steel-inngest/issues"
+    "url": "https://github.com/steel-experiments/steel-inngest/issues"
   },
   "keywords": [
     "steel",

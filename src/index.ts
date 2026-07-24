@@ -10,8 +10,8 @@
  */
 
 export { withSteelSession } from "./session.js";
-export { steelScrape, mapScrapeResult } from "./scrape.js";
-export { steelMiddleware, SteelMiddleware } from "./middleware.js";
+export { steelScrape } from "./scrape.js";
+export { steelMiddleware } from "./middleware.js";
 
 export type {
   SteelSessionHandle,

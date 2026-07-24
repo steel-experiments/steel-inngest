@@ -1,8 +1,16 @@
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { withSteelSession } from "../src/session.js";
 import { NO_API_KEY_ERROR } from "../src/internal.js";
-import type { SteelSessionHandle } from "../src/types.js";
-import { createFakeStep, createFakeSteel, type FakeStep } from "./helpers.js";
+import type {
+  SteelSessionHandle,
+  WithSteelSessionOptions,
+} from "../src/types.js";
+import {
+  createFakeStep,
+  createFakeSteel,
+  restoreEnv,
+  type FakeStep,
+} from "./helpers.js";
 
 type StepParam = Parameters<typeof withSteelSession>[0];
 
@@ -14,10 +22,10 @@ const SAVED_KEY = process.env.STEEL_API_KEY;
 describe("withSteelSession (T003)", () => {
   beforeEach(() => {
     // Tests that need "no key" delete this; restore after each test.
-    process.env.STEEL_API_KEY = SAVED_KEY;
+    restoreEnv("STEEL_API_KEY", SAVED_KEY);
   });
   afterEach(() => {
-    process.env.STEEL_API_KEY = SAVED_KEY;
+    restoreEnv("STEEL_API_KEY", SAVED_KEY);
   });
 
   describe("handle shape", () => {
@@ -50,12 +58,13 @@ describe("withSteelSession (T003)", () => {
 
     test("connectUrl is `${websocketUrl}&apiKey=${key}`", async () => {
       const steel = createFakeSteel({
+        steelAPIKey: "SECRET",
         session: { websocketUrl: "wss://api.steel.dev/v1/sessions/s/websocket?token=tok" },
       });
       const step = createFakeStep();
       let received: SteelSessionHandle | undefined;
 
-      await withSteelSession(asStep(step), { steel, apiKey: "SECRET" }, async (session) => {
+      await withSteelSession(asStep(step), { steel }, async (session) => {
         received = session;
         return null;
       });
@@ -63,6 +72,17 @@ describe("withSteelSession (T003)", () => {
       expect(received!.connectUrl).toBe(
         "wss://api.steel.dev/v1/sessions/s/websocket?token=tok&apiKey=SECRET",
       );
+    });
+
+    test("the create-step checkpoint does not contain the API key or connectUrl", async () => {
+      const steel = createFakeSteel({ steelAPIKey: "CHECKPOINT_SECRET" });
+      const step = createFakeStep();
+
+      await withSteelSession(asStep(step), { steel }, async () => null);
+
+      const checkpoint = step.getMemo("steel/create-session");
+      expect(checkpoint).not.toHaveProperty("connectUrl");
+      expect(JSON.stringify(checkpoint)).not.toContain("CHECKPOINT_SECRET");
     });
 
     test("viewerUrl maps from sessionViewerUrl; empty -> null", async () => {
@@ -99,10 +119,12 @@ describe("withSteelSession (T003)", () => {
 
     test("on a replay, the create step does NOT re-run (memoized)", async () => {
       const steel = createFakeSteel();
-      const seeded: SteelSessionHandle = {
+      const seeded = {
         id: "replay-id",
-        connectUrl: "wss://replayed&apiKey=k",
+        websocketUrl: "wss://replayed?token=t",
         viewerUrl: null,
+        configurationFingerprint:
+          "382d411accaaacfa526894330fdf5ede7793fe3850abd9b569d0a16df1bd3536",
       };
       const step = createFakeStep({ "steel/create-session": seeded });
 
@@ -115,7 +137,11 @@ describe("withSteelSession (T003)", () => {
       // sessions.create was never called on the replay.
       expect(steel.calls.create).toHaveLength(0);
       // The handler got the memoized handle.
-      expect(received).toEqual(seeded);
+      expect(received).toEqual({
+        id: "replay-id",
+        connectUrl: "wss://replayed/?token=t&apiKey=test-key",
+        viewerUrl: null,
+      });
       // The create step was invoked but did not execute its handler.
       const createRun = step.runs.find((r) => r.id === "steel/create-session");
       expect(createRun?.executed).toBe(false);
@@ -164,6 +190,53 @@ describe("withSteelSession (T003)", () => {
           throw marker;
         }),
       ).rejects.toBe(marker);
+    });
+
+    test("a replay rejects changed credentials before handler or release", async () => {
+      const step = createFakeStep();
+      const original = createFakeSteel({ steelAPIKey: "original-key" });
+      const interrupt = new Error("stop after create");
+
+      await expect(
+        withSteelSession(asStep(step), { steel: original }, async () => {
+          throw interrupt;
+        }),
+      ).rejects.toBe(interrupt);
+
+      const changed = createFakeSteel({ steelAPIKey: "changed-key" });
+      let handlerCalled = false;
+      await expect(
+        withSteelSession(asStep(step), { steel: changed }, async () => {
+          handlerCalled = true;
+          return null;
+        }),
+      ).rejects.toThrow(/configuration changed/i);
+
+      expect(handlerCalled).toBe(false);
+      expect(changed.calls.release).toHaveLength(0);
+    });
+
+    test("a replay rejects a changed base URL before handler or release", async () => {
+      const step = createFakeStep();
+      const original = createFakeSteel({
+        steelAPIKey: "same-key",
+        baseURL: "https://original.steel.example",
+      });
+
+      await expect(
+        withSteelSession(asStep(step), { steel: original }, async () => {
+          throw new Error("stop after create");
+        }),
+      ).rejects.toThrow("stop after create");
+
+      const changed = createFakeSteel({
+        steelAPIKey: "same-key",
+        baseURL: "https://changed.steel.example",
+      });
+      await expect(
+        withSteelSession(asStep(step), { steel: changed }, async () => null),
+      ).rejects.toThrow(/configuration changed/i);
+      expect(changed.calls.release).toHaveLength(0);
     });
   });
 
@@ -223,6 +296,24 @@ describe("withSteelSession (T003)", () => {
       await withSteelSession(asStep(createFakeStep()), { steel: a, runId: "run-1" }, async () => null);
       await withSteelSession(asStep(createFakeStep()), { steel: b, runId: "run-1" }, async () => null);
       expect(a.calls.create[0]?.params.sessionId).toBe(b.calls.create[0]?.params.sessionId);
+    });
+
+    test("same runId and different stepPrefix -> different sessionIds", async () => {
+      const a = createFakeSteel({ nextId: () => "a" });
+      const b = createFakeSteel({ nextId: () => "b" });
+      await withSteelSession(
+        asStep(createFakeStep()),
+        { steel: a, runId: "run-1", stepPrefix: "catalog" },
+        async () => null,
+      );
+      await withSteelSession(
+        asStep(createFakeStep()),
+        { steel: b, runId: "run-1", stepPrefix: "checkout" },
+        async () => null,
+      );
+      expect(a.calls.create[0]?.params.sessionId).not.toBe(
+        b.calls.create[0]?.params.sessionId,
+      );
     });
 
     test("different runIds -> different sessionIds", async () => {
@@ -319,7 +410,73 @@ describe("withSteelSession (T003)", () => {
         received = s;
         return null;
       });
-      expect(received!.connectUrl).toBe("wss://ws?token=t&apiKey=client-provided-key");
+      expect(received!.connectUrl).toBe("wss://ws/?token=t&apiKey=client-provided-key");
+    });
+
+    test("a provided client's key is authoritative over the environment", async () => {
+      process.env.STEEL_API_KEY = "environment-key";
+      const steel = createFakeSteel({
+        steelAPIKey: "client-key",
+        session: { websocketUrl: "wss://ws?token=t" },
+      });
+      let received: SteelSessionHandle | undefined;
+
+      await withSteelSession(asStep(createFakeStep()), { steel }, async (session) => {
+        received = session;
+        return null;
+      });
+
+      expect(received?.connectUrl).toBe("wss://ws/?token=t&apiKey=client-key");
+    });
+
+    test.each([null, ""])(
+      "a supplied client with key %j does not borrow one from the environment",
+      async (steelAPIKey) => {
+        process.env.STEEL_API_KEY = "environment-key";
+        const steel = createFakeSteel({ steelAPIKey });
+        const step = createFakeStep();
+
+        await expect(
+          withSteelSession(asStep(step), { steel }, async () => null),
+        ).rejects.toThrow(NO_API_KEY_ERROR);
+        expect(steel.calls.create).toHaveLength(0);
+      },
+    );
+  });
+
+  describe("client option exclusivity", () => {
+    test("the options type rejects apiKey/baseUrl alongside steel", () => {
+      const steel = createFakeSteel();
+      const withClient: WithSteelSessionOptions = { steel };
+      const withCredentials: WithSteelSessionOptions = {
+        apiKey: "key",
+        baseUrl: "https://steel.example",
+      };
+
+      // @ts-expect-error A supplied client is mutually exclusive with apiKey.
+      const clientAndKey: WithSteelSessionOptions = { steel, apiKey: "other" };
+      // @ts-expect-error A supplied client is mutually exclusive with baseUrl.
+      const clientAndBaseUrl: WithSteelSessionOptions = {
+        steel,
+        baseUrl: "https://other.example",
+      };
+
+      expect([withClient, withCredentials, clientAndKey, clientAndBaseUrl]).toHaveLength(4);
+    });
+
+    test.each([
+      ["apiKey", { apiKey: "other-key" }],
+      ["baseUrl", { baseUrl: "https://other.example" }],
+    ])("runtime callers cannot pass steel with %s", async (_name, conflict) => {
+      const steel = createFakeSteel();
+      const step = createFakeStep();
+      const options = { steel, ...conflict } as unknown as WithSteelSessionOptions;
+
+      await expect(
+        withSteelSession(asStep(step), options, async () => null),
+      ).rejects.toThrow(/cannot be combined|mutually exclusive/i);
+      expect(step.runs).toHaveLength(0);
+      expect(steel.calls.create).toHaveLength(0);
     });
   });
 });

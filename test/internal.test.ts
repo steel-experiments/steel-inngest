@@ -8,15 +8,16 @@ import {
   resolveTimeout,
   DEFAULT_TIMEOUT_MS,
 } from "../src/internal.js";
+import { restoreEnv } from "./helpers.js";
 
 const SAVED_KEY = process.env.STEEL_API_KEY;
 
 describe("resolveApiKey", () => {
   beforeEach(() => {
-    process.env.STEEL_API_KEY = SAVED_KEY;
+    restoreEnv("STEEL_API_KEY", SAVED_KEY);
   });
   afterEach(() => {
-    process.env.STEEL_API_KEY = SAVED_KEY;
+    restoreEnv("STEEL_API_KEY", SAVED_KEY);
   });
 
   test("explicit option wins", () => {
@@ -44,10 +45,10 @@ describe("resolveApiKey", () => {
 
 describe("createSteelClient", () => {
   beforeEach(() => {
-    process.env.STEEL_API_KEY = SAVED_KEY;
+    restoreEnv("STEEL_API_KEY", SAVED_KEY);
   });
   afterEach(() => {
-    process.env.STEEL_API_KEY = SAVED_KEY;
+    restoreEnv("STEEL_API_KEY", SAVED_KEY);
   });
 
   test("builds a client whose steelAPIKey is the resolved key", () => {
@@ -73,6 +74,25 @@ describe("buildConnectUrl", () => {
       "wss://api/s/s1/websocket?token=t&apiKey=K",
     );
   });
+
+  test("encodes reserved characters in the API key as one query value", () => {
+    const result = buildConnectUrl(
+      "wss://api/s/s1/websocket?token=t",
+      "abc+def&x=y#fragment",
+    );
+    const parsed = new URL(result);
+
+    expect(parsed.searchParams.get("apiKey")).toBe("abc+def&x=y#fragment");
+    expect([...parsed.searchParams.keys()]).toEqual(["token", "apiKey"]);
+  });
+});
+
+describe("restoreEnv", () => {
+  test("restores an originally missing variable by deleting it", () => {
+    process.env.STEEL_INNGEST_RESTORE_TEST = "temporary";
+    restoreEnv("STEEL_INNGEST_RESTORE_TEST", undefined);
+    expect(process.env.STEEL_INNGEST_RESTORE_TEST).toBeUndefined();
+  });
 });
 
 describe("resolveTimeout", () => {
@@ -96,14 +116,24 @@ describe("deriveSessionId (UUIDv5)", () => {
   const UUID_V5 = /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
   test("produces a valid v5 UUID", () => {
-    expect(deriveSessionId("run-1")).toMatch(UUID_V5);
+    expect(deriveSessionId("run-1", "steel")).toMatch(UUID_V5);
   });
 
-  test("deterministic: same runId -> same id", () => {
-    expect(deriveSessionId("run-1")).toBe(deriveSessionId("run-1"));
+  test("deterministic: same runId and stepPrefix -> same id", () => {
+    expect(deriveSessionId("run-1", "catalog")).toBe(
+      deriveSessionId("run-1", "catalog"),
+    );
   });
 
   test("different runIds -> different ids", () => {
-    expect(deriveSessionId("run-1")).not.toBe(deriveSessionId("run-2"));
+    expect(deriveSessionId("run-1", "steel")).not.toBe(
+      deriveSessionId("run-2", "steel"),
+    );
+  });
+
+  test("same runId with different step prefixes -> different ids", () => {
+    expect(deriveSessionId("run-1", "catalog")).not.toBe(
+      deriveSessionId("run-1", "checkout"),
+    );
   });
 });
