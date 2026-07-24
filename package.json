@@ -44,7 +44,7 @@
     "steel-sdk": "^0.18.0",
     "tsup": "^8.3.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
   "overrides": {
