@@ -1,6 +1,6 @@
 {
   "name": "steel-inngest",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Durable Steel browser sessions inside Inngest functions.",
   "license": "MIT",
   "type": "module",
@@ -27,7 +27,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "build": "tsup",
-    "check:package": "npm run build && node scripts/verify-package.mjs",
+    "check:package": "node scripts/verify-package.mjs",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm test && npm run check:package && npm audit --omit=dev",
     "example:price-monitor": "npm run example:server",
     "example:server": "tsx --env-file-if-exists=.env examples/server.ts"
   },
@@ -49,7 +51,7 @@
     "esbuild": "^0.28.1"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "repository": {
     "type": "git",

@@ -34,11 +34,11 @@ export async function steelScrape(
   url: string,
   options: SteelScrapeOptions = {},
 ): Promise<SteelScrapeResult> {
-  assertExclusiveSteelClient(options, "steelApiKey");
+  assertExclusiveSteelClient(options);
 
   const client =
     options.steel ??
-    createSteelClient({ apiKey: options.steelApiKey, baseUrl: options.baseUrl });
+    createSteelClient({ apiKey: options.apiKey, baseUrl: options.baseUrl });
   const response = (await client.scrape({ url })) as SteelScrapeResponse;
   return mapScrapeResult(response);
 }

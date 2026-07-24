@@ -12,7 +12,7 @@ description: "Run Steel browser sessions as durable Inngest steps."
     below as a starting point for that review, not final copy.
 
     Source of truth for the integration: this repo's PROJECT.md + README.md.
-    Package: steel-inngest (npm), v0.2.0. */}
+    Package: steel-inngest (npm), v0.3.0. */}
 
 # Inngest
 
@@ -27,7 +27,7 @@ another CDP driver.
 
 ## Requirements
 
-- Node.js 20 or later
+- Node.js 22 or later
 - `inngest` v4 (`>=4 <5`)
 - `steel-sdk` `^0.18.0`
 
@@ -131,7 +131,7 @@ await withSteelSession(step, { steel, runId }, handler);
 ```
 
 The same rule applies to `steelScrape`: pass either `steel` or
-`steelApiKey`/`baseUrl`.
+`apiKey`/`baseUrl`.
 
 `useProxy` supports the boolean on/off form only. Rich geolocation or
 server-proxy configuration is not exposed by this wrapper.

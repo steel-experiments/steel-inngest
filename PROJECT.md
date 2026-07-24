@@ -103,7 +103,7 @@ helper, it accepts either a supplied client or key/base URL configuration, never
 
 ## Packaging requirements
 
-- `package.json`: name `steel-inngest`, Node >=20, peer deps `inngest >=4 <5` and `steel-sdk ^0.18.0`
+- `package.json`: name `steel-inngest`, Node >=22, peer deps `inngest >=4 <5` and `steel-sdk ^0.18.0`
   (0.x moves fast — validate against latest before release); **no optionalDependencies** (users
   bring their own Playwright/Puppeteer — we only hand back a URL).
 - `exports` map with nested `import` and `require` branches; each branch keeps `types` first and
@@ -132,7 +132,7 @@ helper, it accepts either a supplied client or key/base URL configuration, never
 `npm run typecheck`, `npm run build` all pass with pristine output (no skips, no console noise);
 public exports carry TSDoc; TO-DO.json status and `updated_at` current.
 
-**Release (v0.2.0) is done when**: all acceptance criteria below pass · the price-monitor example
+**Release (v0.3.0) is done when**: all acceptance criteria below pass · the price-monitor example
 runs end-to-end against real Steel and the Inngest dev server · `npm pack --dry-run` shows a
 dist-only tarball whose types resolve under `moduleResolution` bundler and Node16 for both ESM
 and CommonJS consumers · README covers quickstart, lifecycle guarantees, and the
@@ -170,8 +170,8 @@ connectUrl-embeds-key warning.
 ### Acceptance criteria — `steelScrape`
 
 - Returns `{ html, markdown, title, statusCode }`; missing fields map to `""` / `0`.
-- `baseUrl` and `steelApiKey` options are honored.
-- A supplied client is mutually exclusive with `steelApiKey`/`baseUrl` at type level and runtime.
+- `baseUrl` and `apiKey` options are honored.
+- A supplied client is mutually exclusive with `apiKey`/`baseUrl` at type level and runtime.
 
 ### Acceptance criteria — package artifact
 

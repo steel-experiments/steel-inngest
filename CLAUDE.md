@@ -31,7 +31,7 @@ npm run typecheck   # tsc --noEmit
 npm run build       # tsup: cjs + esm + dts
 ```
 
-Use Node 20 or newer; current Inngest v4 requires it.
+Use Node 22 or newer.
 
 ## Working agreements
 

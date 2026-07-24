@@ -79,16 +79,16 @@ describe("steelScrape (T004)", () => {
     await expect(steelScrape("https://x.example", {})).rejects.toThrow(NO_API_KEY_ERROR);
   });
 
-  test("the options type rejects steelApiKey/baseUrl alongside steel", () => {
+  test("the options type rejects apiKey/baseUrl alongside steel", () => {
     const steel = createFakeSteel();
     const withClient: SteelScrapeOptions = { steel };
     const withCredentials: SteelScrapeOptions = {
-      steelApiKey: "key",
+      apiKey: "key",
       baseUrl: "https://steel.example",
     };
 
-    // @ts-expect-error A supplied client is mutually exclusive with steelApiKey.
-    const clientAndKey: SteelScrapeOptions = { steel, steelApiKey: "other" };
+    // @ts-expect-error A supplied client is mutually exclusive with apiKey.
+    const clientAndKey: SteelScrapeOptions = { steel, apiKey: "other" };
     // @ts-expect-error A supplied client is mutually exclusive with baseUrl.
     const clientAndBaseUrl: SteelScrapeOptions = {
       steel,
@@ -99,14 +99,14 @@ describe("steelScrape (T004)", () => {
   });
 
   test.each([
-    ["steelApiKey", { steelApiKey: "other-key" }],
+    ["apiKey", { apiKey: "other-key" }],
     ["baseUrl", { baseUrl: "https://other.example" }],
   ])("runtime callers cannot pass steel with %s", async (_name, conflict) => {
     const steel = createFakeSteel();
     const options = { steel, ...conflict } as unknown as SteelScrapeOptions;
 
     await expect(steelScrape("https://x.example", options)).rejects.toThrow(
-      /cannot be combined|mutually exclusive/i,
+      "`steel` cannot be combined with `apiKey` or `baseUrl`",
     );
     expect(steel.calls.scrape).toHaveLength(0);
   });

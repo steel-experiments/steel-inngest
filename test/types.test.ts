@@ -81,25 +81,33 @@ describe("option interfaces (T002)", () => {
 
   test("SteelScrapeOptions supports either a client or client configuration", () => {
     expectTypeOf<SteelScrapeOptions>().toMatchTypeOf<{
-      steelApiKey?: string;
+      apiKey?: string;
       baseUrl?: string;
     }>();
 
     const steel = {} as Steel;
     const withClient: SteelScrapeOptions = { steel };
     const withConfiguration: SteelScrapeOptions = {
-      steelApiKey: "key",
+      apiKey: "key",
       baseUrl: "https://steel.example",
     };
-    // @ts-expect-error A supplied client is mutually exclusive with steelApiKey.
-    const withBothKey: SteelScrapeOptions = { steel, steelApiKey: "other" };
+    // @ts-expect-error steelApiKey was replaced by the canonical apiKey option.
+    const withLegacyKey: SteelScrapeOptions = { steelApiKey: "legacy" };
+    // @ts-expect-error A supplied client is mutually exclusive with apiKey.
+    const withBothKey: SteelScrapeOptions = { steel, apiKey: "other" };
     // @ts-expect-error A supplied client is mutually exclusive with baseUrl.
     const withBothUrl: SteelScrapeOptions = {
       steel,
       baseUrl: "https://other.example",
     };
 
-    expect([withClient, withConfiguration, withBothKey, withBothUrl]).toHaveLength(4);
+    expect([
+      withClient,
+      withConfiguration,
+      withLegacyKey,
+      withBothKey,
+      withBothUrl,
+    ]).toHaveLength(5);
   });
 
   test("SteelScrapeResult is all JSON primitives", () => {
