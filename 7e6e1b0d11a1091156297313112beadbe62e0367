@@ -1,0 +1,10 @@
+# Design: Build from source at pack time
+
+## Problem
+The repository intentionally ignores dist, so a clean checkout could publish a tarball with no runtime or declaration files.
+
+## Approach
+prepack always builds, prepublishOnly runs tests, clean-source consumer verification, and audit. The verifier copies only package source into a temporary directory, packs there, then tests ESM, CommonJS, and TypeScript consumers.
+
+## Gotchas
+Nested npm commands must ignore an inherited npm_config_dry_run flag, and lifecycle build logs can precede npm pack JSON output.
