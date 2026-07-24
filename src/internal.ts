@@ -26,7 +26,7 @@ export const STEEL_NAMESPACE_UUID = "2f8e3c91-7b4d-4e6a-9c5f-1a2b3c4d5e6f";
  * (option and env var) so the fix is obvious.
  */
 export const NO_API_KEY_ERROR =
-  "steel-inngest: No Steel API key found. Pass `apiKey` (or `steelApiKey`) in options, or set the STEEL_API_KEY environment variable.";
+  "steel-inngest: No Steel API key found. Pass `apiKey` in options, or set the STEEL_API_KEY environment variable.";
 
 /**
  * Error thrown when a replay is configured with a different Steel endpoint or
@@ -46,17 +46,15 @@ export function assertExclusiveSteelClient(
   options: {
     readonly steel?: unknown;
     readonly apiKey?: unknown;
-    readonly steelApiKey?: unknown;
     readonly baseUrl?: unknown;
   },
-  apiKeyOption: "apiKey" | "steelApiKey",
 ): void {
   if (
     options.steel !== undefined &&
-    (options[apiKeyOption] !== undefined || options.baseUrl !== undefined)
+    (options.apiKey !== undefined || options.baseUrl !== undefined)
   ) {
     throw new Error(
-      `steel-inngest: \`steel\` cannot be combined with \`${apiKeyOption}\` or \`baseUrl\`; pass either a pre-built client or client configuration.`,
+      "steel-inngest: `steel` cannot be combined with `apiKey` or `baseUrl`; pass either a pre-built client or client configuration.",
     );
   }
 }

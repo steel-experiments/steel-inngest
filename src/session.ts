@@ -71,7 +71,7 @@ export async function withSteelSession<T>(
   options: WithSteelSessionOptions,
   handler: (session: SteelSessionHandle) => Promise<T>,
 ): Promise<T> {
-  assertExclusiveSteelClient(options, "apiKey");
+  assertExclusiveSteelClient(options);
 
   const prefix = options.stepPrefix ?? DEFAULT_STEP_PREFIX;
   // Validate the timeout up front so an invalid value fails fast without

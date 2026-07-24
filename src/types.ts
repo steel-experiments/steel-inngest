@@ -108,13 +108,13 @@ export type SteelScrapeOptions =
   | {
       /** A pre-built Steel client. */
       readonly steel: Steel;
-      readonly steelApiKey?: never;
+      readonly apiKey?: never;
       readonly baseUrl?: never;
     }
   | {
       readonly steel?: never;
       /** Steel API key. Defaults to `process.env.STEEL_API_KEY`. */
-      readonly steelApiKey?: string;
+      readonly apiKey?: string;
       /** Steel base URL. */
       readonly baseUrl?: string;
     };
