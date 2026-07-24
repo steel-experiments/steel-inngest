@@ -11,12 +11,12 @@ run does not start over from scratch.
 ## Install
 
 ```bash
-npm install steel-inngest steel-sdk inngest
+npm install steel-inngest steel-sdk inngest playwright-core
 ```
 
 Requirements:
 
-- Node.js 20 or newer
+- Node.js 22 or newer
 - Inngest v4 (`>=4 <5`)
 - `steel-sdk` `^0.18.0`
 
@@ -136,6 +136,9 @@ const page = await steelScrape("https://example.com");
 console.log(page.title);
 console.log(page.markdown);
 ```
+
+It accepts the same `apiKey` and `baseUrl` client options as the middleware.
+You can also pass an existing Steel client as `steel`.
 
 It returns:
 

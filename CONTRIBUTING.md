@@ -4,7 +4,7 @@ Issues and pull requests are welcome.
 
 ## Set up the project
 
-Use Node.js 20 or newer:
+Use Node.js 22 or newer:
 
 ```bash
 npm ci

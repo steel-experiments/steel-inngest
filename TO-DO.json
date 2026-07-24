@@ -10,7 +10,7 @@
       "title": "Scaffold package: package.json, tsconfig, tsup, vitest, lockfile",
       "priority": 1,
       "status": "done",
-      "details": "Node 20+, peer deps inngest >=4 <5 + steel-sdk ^0.18.0; no optionalDependencies; nested import/require export conditions; actual-origin repository + MIT license; files: [dist]; committed lockfile and build/test/example scripts.",
+      "details": "Node 22+, peer deps inngest >=4 <5 + steel-sdk ^0.18.0; no optionalDependencies; nested import/require export conditions; actual-origin repository + MIT license; files: [dist]; committed lockfile and build/test/example scripts.",
       "tags": [
         "packaging"
       ],
@@ -171,11 +171,8 @@
       "id": "T009",
       "title": "Publish prep: npm pack dry-run, version 0.2.0, tag",
       "priority": 4,
-      "status": "blocked",
-      "details": "The live E2E and all local release gates pass, and the release materials are complete. Tagging, pushing, and the GitHub release are authorized. npm publication is blocked because this environment has no npm authentication.",
-      "blockers": [
-        "Authenticate npm with an account allowed to publish the unclaimed steel-inngest package."
-      ],
+      "status": "done",
+      "details": "v0.2.0 remains an immutable GitHub-only prerelease and was never published to npm. Its release work is superseded by the hardened first registry release tracked in T013.",
       "tags": [
         "packaging",
         "release"
@@ -213,7 +210,7 @@
       "title": "CI and release verification matrix",
       "priority": 3,
       "status": "done",
-      "details": "Node 20 CI covers pristine tests, typecheck, build, packed Bundler/Node16 ESM/Node16 CJS consumers, runtime import/require, pack inspection, and production audit. Local clean-install execution passes every gate; the billable E2E remains manual.",
+      "details": "Node 22 and 24 CI covers pristine tests, typecheck, build, clean-source packed Bundler/Node16 ESM/Node16 CJS consumers, runtime import/require, pack inspection, and production audit. The billable E2E remains an explicit release gate.",
       "tags": [
         "ci",
         "packaging",
@@ -265,6 +262,41 @@
       "depends_on": [
         "T003",
         "T011"
+      ],
+      "created_at": "2026-07-24",
+      "updated_at": "2026-07-24"
+    },
+    {
+      "id": "T013",
+      "title": "Harden and publish the first npm release as v0.3.0",
+      "priority": 1,
+      "status": "doing",
+      "details": "Make clean-source packing self-building, standardize apiKey across the public API, require supported Node releases, harden GitHub security and CI, publish npm before exposing the tag, and verify the installed registry artifact.",
+      "steps": [
+        "Add prepack and prepublish gates plus clean-source consumer verification.",
+        "Standardize scrape credentials on apiKey and move CI/runtime support to Node 22 and 24.",
+        "Correct install and security documentation and enable repository safeguards.",
+        "Run automated and live E2E gates.",
+        "Publish npm, then push v0.3.0 and create the GitHub release.",
+        "Verify a fresh registry consumer and close release state."
+      ],
+      "tags": [
+        "release",
+        "packaging",
+        "security"
+      ],
+      "files": [
+        "package.json",
+        "package-lock.json",
+        "README.md",
+        "src/types.ts",
+        "src/scrape.ts",
+        "scripts/verify-package.mjs",
+        ".github/workflows/ci.yml",
+        ".github/dependabot.yml"
+      ],
+      "depends_on": [
+        "T012"
       ],
       "created_at": "2026-07-24",
       "updated_at": "2026-07-24"
