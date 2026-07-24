@@ -1,0 +1,10 @@
+# Context
+
+## Background
+The v0.2.0 live Steel and Inngest test completed successfully before release preparation.
+
+## Why this way
+Repository defaults now normalize line endings and editor behavior, ignore local credentials and IDE state, and record the live E2E as complete. The release task remains blocked only on missing npm authentication.
+
+## Gotchas
+The package name is currently unclaimed, but publishing requires an authenticated npm account with permission to claim it.
