@@ -1,0 +1,11 @@
+# Design: One credential option name
+
+## Problem
+steelMiddleware and withSteelSession used apiKey while steelScrape exposed steelApiKey for the same Steel credential.
+
+## Approach
+v0.3.0 standardizes all three APIs on apiKey before the first npm publication. Runtime exclusivity checks now share the same error and option shape.
+
+## Key trade-offs
+- This changes the GitHub-only v0.2.0 source API, but no npm version used the old name.
+- A compile-time regression test rejects the legacy spelling so the public surface stays consistent.
