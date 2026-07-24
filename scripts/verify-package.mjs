@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import {
   cpSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   renameSync,
@@ -15,14 +16,19 @@ import { fileURLToPath } from "node:url";
 const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const fixtureRoot = join(projectRoot, "test", "fixtures", "package-consumer");
 const temporaryRoot = mkdtempSync(join(tmpdir(), "steel-inngest-package-"));
+const packageSourceRoot = join(temporaryRoot, "package-source");
 const consumerRoot = join(temporaryRoot, "consumer");
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 
 function run(command, args, cwd) {
+  const env = { ...process.env };
+  delete env.npm_config_dry_run;
+  delete env.NPM_CONFIG_DRY_RUN;
+
   const result = spawnSync(command, args, {
     cwd,
     encoding: "utf8",
-    env: process.env,
+    env,
   });
 
   if (result.status !== 0) {
@@ -31,6 +37,22 @@ function run(command, args, cwd) {
   }
 
   return result.stdout;
+}
+
+function parsePackOutput(output) {
+  for (
+    let start = output.lastIndexOf("[");
+    start >= 0;
+    start = output.lastIndexOf("[", start - 1)
+  ) {
+    try {
+      return JSON.parse(output.slice(start));
+    } catch {
+      // Lifecycle scripts may write to stdout before npm emits its JSON result.
+    }
+  }
+
+  throw new Error(`npm pack did not emit a JSON result:\n${output}`);
 }
 
 function linkPeerDependency(name) {
@@ -45,12 +67,31 @@ function linkPeerDependency(name) {
 }
 
 try {
+  mkdirSync(packageSourceRoot);
+  for (const path of [
+    "LICENSE",
+    "README.md",
+    "package.json",
+    "src",
+    "tsconfig.json",
+    "tsup.config.ts",
+  ]) {
+    cpSync(join(projectRoot, path), join(packageSourceRoot, path), {
+      recursive: true,
+    });
+  }
+  symlinkSync(
+    join(projectRoot, "node_modules"),
+    join(packageSourceRoot, "node_modules"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
+
   const packOutput = run(
     npmCommand,
-    ["pack", "--json", "--pack-destination", temporaryRoot],
-    projectRoot,
+    ["pack", "--json", "--silent", "--pack-destination", temporaryRoot],
+    packageSourceRoot,
   );
-  const [packResult] = JSON.parse(packOutput);
+  const [packResult] = parsePackOutput(packOutput);
 
   if (!packResult?.filename) {
     throw new Error(`npm pack did not report a tarball:\n${packOutput}`);
@@ -117,7 +158,7 @@ try {
   }
 
   console.log(
-    "Packed consumer checks passed (Bundler, Node16 ESM/CJS, import, require).",
+    "Clean-source packed consumer checks passed (Bundler, Node16 ESM/CJS, import, require).",
   );
 } finally {
   rmSync(temporaryRoot, { recursive: true, force: true });
