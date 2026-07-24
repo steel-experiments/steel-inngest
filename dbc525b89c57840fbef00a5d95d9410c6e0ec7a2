@@ -1,0 +1,3 @@
+# Context
+
+CI now matches the supported runtime floor and current LTS coverage by testing Node 22 and 24. The workflow uses current action majors, and Dependabot watches npm and GitHub Actions weekly. Repository-level private vulnerability reporting, secret scanning, push protection, and automated security fixes were enabled alongside this commit.
