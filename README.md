@@ -1,39 +1,24 @@
 # steel-inngest
 
-Durable [Steel](https://steel.dev) browser sessions inside
-[Inngest](https://www.inngest.com) v4 functions.
+Durable Steel browser sessions for Inngest functions.
 
-`steel-inngest` represents session creation and release as Inngest steps. A
-successfully checkpointed step is memoized when a run resumes, while every
-session also has a finite Steel timeout as a bounded cleanup backstop.
-
-The package has exactly three runtime exports:
-
-```ts
-import { steelMiddleware, withSteelSession, steelScrape } from "steel-inngest";
-```
-
-- `steelMiddleware(options?)` injects a configured Steel client as `ctx.steel`.
-- `withSteelSession(step, options, handler)` creates a session in a step, passes
-  a JSON-safe handle (`id`, `connectUrl`, `viewerUrl`) to the handler, and
-  releases the session in a final step after the handler succeeds.
-- `steelScrape(url, options?)` performs a one-shot scrape and returns
-  `{ html, markdown, title, statusCode }`.
-
-Bring Playwright, Puppeteer, or another CDP driver. The package owns the Steel
-session lifecycle; your code owns each short-lived driver connection.
-
-## Requirements
-
-- Node.js 20 or later
-- `inngest` v4 (`>=4 <5`)
-- `steel-sdk` `^0.18.0`
+[Inngest](https://www.inngest.com) runs background functions as retryable,
+memoized steps. [Steel](https://steel.dev) provides cloud browsers that you can
+control with Playwright, Puppeteer, or another CDP client. This package joins
+the two: it creates and releases Steel sessions as Inngest steps, so a resumed
+run does not start over from scratch.
 
 ## Install
 
 ```bash
 npm install steel-inngest steel-sdk inngest
 ```
+
+Requirements:
+
+- Node.js 20 or newer
+- Inngest v4 (`>=4 <5`)
+- `steel-sdk` `^0.18.0`
 
 Set your Steel API key:
 
@@ -43,10 +28,9 @@ export STEEL_API_KEY=ste-...
 
 ## Quickstart
 
-Open, use, and close the Playwright connection inside the same `step.run`
-callback. Inngest re-executes the surrounding function to advance its steps, so
-opening a connection outside the callback can reconnect even when the browser
-work step has already been memoized.
+Add the middleware to your Inngest client, then use `withSteelSession` inside a
+function. Open and close the Playwright connection inside the same `step.run`
+callback.
 
 ```ts
 import { chromium } from "playwright-core";
@@ -55,13 +39,13 @@ import { steelMiddleware, withSteelSession } from "steel-inngest";
 
 const inngest = new Inngest({
   id: "price-monitor",
-  middleware: [steelMiddleware({ apiKey: process.env.STEEL_API_KEY })],
+  middleware: [steelMiddleware()],
 });
 
 export const checkPrice = inngest.createFunction(
   {
     id: "check-price",
-    triggers: { event: "steel/price-monitor.requested" },
+    triggers: { event: "price/check.requested" },
   },
   async ({ step, steel, runId }) =>
     withSteelSession(
@@ -70,177 +54,186 @@ export const checkPrice = inngest.createFunction(
       async (session) =>
         step.run("read-price", async () => {
           const browser = await chromium.connectOverCDP(session.connectUrl);
+
           try {
             const page = await browser.newPage();
-            await page.goto("https://books.toscrape.com/", {
-              waitUntil: "domcontentloaded",
-            });
-            const price = await page
-              .locator(".product_pod .price_color")
-              .first()
-              .textContent();
-            return { price: price?.trim() ?? null };
+            await page.goto("https://books.toscrape.com/");
+
+            return {
+              price: await page
+                .locator(".product_pod .price_color")
+                .first()
+                .textContent(),
+            };
           } finally {
-            await browser.close(); // Close the connection, not the Steel session.
+            await browser.close();
           }
         }),
     ),
 );
 ```
 
-## Security
+`browser.close()` closes your CDP connection. `withSteelSession` releases the
+Steel session after the handler succeeds.
 
-`session.connectUrl` embeds the Steel API key. The package appends it to the
-SDK-provided websocket URL as
-`${session.websocketUrl}&apiKey=${key}`—note the `&`. Do not hand-assemble,
-return, or log this URL or the complete session handle. Return only the data
-your browser step extracted.
+## API
 
-The internal create step checkpoints session metadata and a one-way
-configuration fingerprint—not the API key, base URL, or `connectUrl`. The
-public handle is assembled in memory after replay. If the API key or base URL
-changes while an Inngest run is active, the wrapper fails before browser work
-or release instead of using different configuration against the existing
-session.
-
-## Run the served E2E
-
-The repository includes a real Node-served Inngest endpoint in
-[`examples/server.ts`](examples/server.ts). It is intentionally excluded from CI
-because triggering it creates a live, potentially billable Steel session.
-
-1. Copy `.env.example` to `.env`, then replace the placeholder
-   `STEEL_API_KEY`.
-2. Start the example endpoint:
-
-   ```bash
-   npm run example:server
-   ```
-
-3. In another terminal, start the Inngest dev server and explicitly sync the
-   endpoint:
-
-   ```bash
-   npx --ignore-scripts=false inngest-cli@latest dev \
-     -u http://localhost:3000/api/inngest
-   ```
-
-4. Confirm the endpoint before spending anything:
-
-   ```bash
-   curl -fsS http://localhost:3000/api/inngest
-   ```
-
-5. The following command is the billable boundary. Send one event only when
-   you are ready to create a real Steel session:
-
-   ```bash
-   curl -fsS -X POST http://localhost:8288/e/local \
-     -H 'Content-Type: application/json' \
-     --data '{"name":"steel/price-monitor.requested","data":{}}'
-   ```
-
-Open `http://localhost:8288` and inspect the run. Its step timeline should show
-session creation, `read-price`, and session release. The Playwright connection
-exists only while `read-price` executes.
-
-## Lifecycle semantics
-
-- **Checkpointed creation is memoized.** Once Inngest has successfully recorded
-  the create step result, replaying the run reuses that result.
-- **This is not an absolute external exactly-once guarantee.** If Steel accepts
-  a create request but the step result is never checkpointed, an ambiguous
-  retry can issue the external request again.
-- **Release follows successful work.** After the handler resolves, a final
-  memoized step releases the Steel session. If the handler throws, its error
-  propagates and the release step is not scheduled.
-- **Failure cleanup is bounded, not immediate.** Every created session has a
-  finite timeout (five minutes by default). A session left behind by a crashed
-  or failed run expires when Steel enforces that timeout; the package does not
-  promise that no session can outlive its Inngest run.
-- **Optional deterministic identity reduces ambiguity.** When `runId` is
-  provided, the Steel session UUID is derived from the `(runId, stepPrefix)`
-  pair. Two sessions in one run must use different `stepPrefix` values, which
-  gives them distinct step IDs and session IDs.
-- **Configuration is replay-bound.** The API key and normalized Steel base URL
-  must remain stable for the lifetime of a run. A replay with changed
-  configuration fails before the handler or release step executes.
-
-Inngest retries step callbacks. Keep external side effects in steps and design
-them for ambiguous outcomes rather than assuming an external operation can
-always be made exactly once.
-
-## Configuration
+The package has three runtime exports.
 
 ### `steelMiddleware(options?)`
 
-| Option | Default | Description |
-| --- | --- | --- |
-| `apiKey` | `process.env.STEEL_API_KEY` | Steel API key. |
-| `baseUrl` | Steel SDK default | Override the Steel base URL. |
+Injects a configured Steel client as `ctx.steel`.
 
-The middleware throws during construction if no API key can be resolved.
+```ts
+steelMiddleware({
+  apiKey: process.env.STEEL_API_KEY,
+  baseUrl: "https://api.steel.dev", // optional
+});
+```
+
+The API key defaults to `STEEL_API_KEY`. Missing credentials fail during
+middleware construction.
 
 ### `withSteelSession(step, options, handler)`
 
-| Option | Default | Description |
-| --- | --- | --- |
-| `steel` | — | Pre-built Steel client. Mutually exclusive with `apiKey` and `baseUrl`. |
-| `apiKey` | `process.env.STEEL_API_KEY` | Key used when the wrapper constructs the client. |
-| `baseUrl` | Steel SDK default | Base URL used when the wrapper constructs the client. |
-| `runId` | — | With `stepPrefix`, derives a deterministic session UUID. |
-| `timeoutMs` | `300000` | Finite Steel session timeout in milliseconds. Omitted or `0` uses the default; negative and non-finite values are rejected. |
-| `useProxy` | — | Boolean forwarded to Steel session creation. |
-| `solveCaptcha` | — | Boolean forwarded to Steel session creation. |
-| `stepPrefix` | `"steel"` | Namespace for internal create/release step IDs and deterministic session identity. Use a unique prefix for each session in one run. |
+Creates a Steel session in an Inngest step, passes a plain object to the
+handler, and releases the session in another step after successful work.
 
-Choose one configuration mode:
+The handler receives:
 
 ```ts
-// Construct a client from the key and optional base URL.
-await withSteelSession(step, { apiKey, baseUrl, runId }, handler);
-
-// Or supply a client whose credentials and base URL are authoritative.
-await withSteelSession(step, { steel, runId }, handler);
+{
+  id: string;
+  connectUrl: string;
+  viewerUrl: string | null;
+}
 ```
 
-Passing `steel` together with `apiKey` or `baseUrl` is rejected instead of
-silently mixing credentials. The same rule applies to `steelScrape`: pass
-either `steel` or `steelApiKey`/`baseUrl`.
+Common options:
 
-`useProxy` deliberately supports only the boolean on/off form. Rich
-geolocation or server proxy configuration is not exposed by this wrapper.
+| Option | Default | Purpose |
+| --- | --- | --- |
+| `steel` | - | Use an existing Steel client. |
+| `apiKey` | `STEEL_API_KEY` | Build a client with this key. |
+| `baseUrl` | Steel default | Override the Steel API URL. |
+| `runId` | - | Derive a stable session ID for this run. |
+| `timeoutMs` | `300000` | Limit how long an unreleased session can live. |
+| `stepPrefix` | `"steel"` | Keep step IDs unique when a run uses multiple sessions. |
+| `useProxy` | - | Enable or disable the Steel proxy. |
+| `solveCaptcha` | - | Enable or disable CAPTCHA solving. |
+
+Pass either `steel` or `apiKey`/`baseUrl`, not both.
 
 ### `steelScrape(url, options?)`
 
-Returns `{ html, markdown, title, statusCode }`. Missing fields map to `""` or
-`0`, so the result is JSON-safe and can be returned from `step.run`.
+Runs a one-shot Steel scrape without creating a browser session:
 
-## What it does not do
+```ts
+import { steelScrape } from "steel-inngest";
 
-- Session pooling: one `withSteelSession` call owns one session.
-- Driver wrapping: connect and drive Playwright or Puppeteer in your own step.
-- Application retry policy: Inngest owns retries.
-- Immediate release after a crashed or failed handler: the finite Steel timeout
-  is the failure-path backstop.
-- Absolute external exactly-once delivery.
-- Rich proxy configuration beyond boolean `useProxy`.
+const page = await steelScrape("https://example.com");
 
-## Development gates
+console.log(page.title);
+console.log(page.markdown);
+```
 
-The non-billable CI path runs the tests, typecheck, build, packed-package
-consumer checks, and package-content inspection on Node.js 20. Run the same
-checks locally:
+It returns:
+
+```ts
+{
+  html: string;
+  markdown: string;
+  title: string;
+  statusCode: number;
+}
+```
+
+## How session recovery works
+
+Inngest may execute a function body more than once as it advances through its
+steps. `withSteelSession` keeps the lifecycle safe across those replays:
+
+1. A create step starts the Steel session and checkpoints its metadata.
+2. Your handler runs browser work in its own steps.
+3. A release step closes the session after successful work.
+
+Completed steps are memoized. If the function resumes, the create step reuses
+its checkpoint instead of creating another session.
+
+An external request can still have an ambiguous outcome if Steel accepts it but
+Inngest never records the step result. Supplying `runId` reduces this risk by
+giving the session a deterministic ID. It is not an absolute exactly-once
+guarantee.
+
+If the handler fails, its error is passed back unchanged and the release step
+does not run. The finite Steel timeout is the cleanup backstop for that case.
+
+## Keep the connection URL secret
+
+`session.connectUrl` contains your Steel API key. Do not log it or return it
+from an Inngest step. Return only the data extracted from the page.
+
+The package does not store the API key or full connection URL in its internal
+step checkpoint. It also rejects a resumed run if its Steel key or base URL has
+changed.
+
+## Multiple sessions in one run
+
+Give each session a different `stepPrefix`:
+
+```ts
+await withSteelSession(step, { steel, runId, stepPrefix: "catalog" }, handler);
+await withSteelSession(step, { steel, runId, stepPrefix: "checkout" }, handler);
+```
+
+The prefixes keep both Inngest step IDs and deterministic Steel session IDs
+separate.
+
+## Run the live example
+
+The repository includes an Inngest endpoint and a price-monitor function. This
+test creates a real, potentially billable Steel session.
 
 ```bash
+cp .env.example .env
+# Put your real STEEL_API_KEY in .env.
+
+npm run example:server
+```
+
+In another terminal:
+
+```bash
+npx --ignore-scripts=false inngest-cli@latest dev \
+  -u http://localhost:3000/api/inngest
+```
+
+Then send one event:
+
+```bash
+curl -fsS -X POST http://localhost:8288/e/local \
+  -H 'Content-Type: application/json' \
+  --data '{"name":"steel/price-monitor.requested","data":{}}'
+```
+
+Open `http://localhost:8288` to inspect the create, browser-work, and release
+steps.
+
+## Development
+
+```bash
+npm ci
 npm test
-npm run typecheck
 npm run build
 npm run check:package
 npm pack --dry-run
 npm audit --omit=dev
 ```
 
+The test suite covers the session lifecycle, replay behavior, middleware
+injection, scrape mapping, ESM and CommonJS loading, and TypeScript resolution.
+See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+
 ## License
 
-MIT
+[MIT](LICENSE)
