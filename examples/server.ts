@@ -1,3 +1,5 @@
+// ABOUTME: Minimal Node server exposing the price-monitor function to the Inngest
+// ABOUTME: dev server for the manual live E2E.
 /**
  * Minimal Node server for the real Inngest dev-server E2E.
  *

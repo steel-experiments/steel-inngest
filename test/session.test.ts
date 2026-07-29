@@ -1,3 +1,5 @@
+// ABOUTME: Unit tests for withSteelSession: handle shape, memoization, release
+// ABOUTME: semantics, retry safety, timeouts, deterministic IDs, and key handling.
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { withSteelSession } from "../src/session.js";
 import { NO_API_KEY_ERROR } from "../src/internal.js";
@@ -395,6 +397,158 @@ describe("withSteelSession", () => {
     });
   });
 
+  describe("create retry safety (lost create response)", () => {
+    /** A live session Steel would report for the deterministic ID. */
+    const liveSession = (id: string) => ({
+      id,
+      status: "live",
+      websocketUrl: `wss://api.steel.dev/v1/sessions/${id}/websocket?token=tok`,
+      sessionViewerUrl: `https://app.steel.dev/sessions/${id}`,
+      timeout: 300_000,
+    });
+
+    test("adopts the existing live session when create rejects a duplicate ID", async () => {
+      // The first attempt created the session server-side but its response was
+      // lost; the retry's create is rejected as a duplicate.
+      const steel = createFakeSteel({
+        onCreate() {
+          throw new Error("Session with this ID already exists");
+        },
+        retrieve: (id) => liveSession(id),
+      });
+      const step = createFakeStep();
+      let received: SteelSessionHandle | undefined;
+
+      await withSteelSession(
+        asStep(step),
+        { steel, runId: "run-retry" },
+        async (s) => {
+          received = s;
+          return "ok";
+        },
+      );
+
+      expect(steel.calls.retrieve).toHaveLength(1);
+      // The adopted session is the one behind the deterministic ID.
+      expect(received!.id).toBe(steel.calls.retrieve[0]!.id);
+      expect(steel.calls.release).toEqual([{ id: received!.id }]);
+    });
+
+    test("a create failure with no adoptable session propagates the original error", async () => {
+      const steel = createFakeSteel({
+        onCreate() {
+          throw new Error("quota exceeded");
+        },
+        // Default retrieve rejects as not found.
+      });
+      const step = createFakeStep();
+
+      await expect(
+        withSteelSession(
+          asStep(step),
+          { steel, runId: "run-x" },
+          async () => null,
+        ),
+      ).rejects.toThrow("quota exceeded");
+      expect(steel.calls.retrieve).toHaveLength(1);
+    });
+
+    test("a create failure with a non-live session propagates the original error", async () => {
+      const steel = createFakeSteel({
+        onCreate() {
+          throw new Error("Session with this ID already exists");
+        },
+        retrieve: (id) => ({ ...liveSession(id), status: "released" }),
+      });
+      const step = createFakeStep();
+
+      await expect(
+        withSteelSession(
+          asStep(step),
+          { steel, runId: "run-x" },
+          async () => null,
+        ),
+      ).rejects.toThrow("already exists");
+    });
+
+    test("without runId there is no deterministic ID, so no lookup is attempted", async () => {
+      const steel = createFakeSteel({
+        onCreate() {
+          throw new Error("create failed");
+        },
+      });
+      const step = createFakeStep();
+
+      await expect(
+        withSteelSession(asStep(step), { steel }, async () => null),
+      ).rejects.toThrow("create failed");
+      expect(steel.calls.retrieve).toHaveLength(0);
+    });
+  });
+
+  describe("release retry safety (lost release response)", () => {
+    test("release failure is success when the session is no longer live", async () => {
+      // The first attempt released the session server-side but its response
+      // was lost; the retry's release is rejected.
+      const steel = createFakeSteel({
+        onRelease() {
+          throw new Error("Session already released");
+        },
+        retrieve: (id) => ({
+          id,
+          status: "released",
+          websocketUrl: "wss://ws?token=t",
+          sessionViewerUrl: "",
+          timeout: 300_000,
+        }),
+      });
+      const step = createFakeStep();
+
+      const result = await withSteelSession(
+        asStep(step),
+        { steel },
+        async () => 7,
+      );
+
+      expect(result).toBe(7);
+      expect(steel.calls.retrieve).toHaveLength(1);
+    });
+
+    test("release failure with a still-live session propagates", async () => {
+      const steel = createFakeSteel({
+        onRelease() {
+          throw new Error("release exploded");
+        },
+        retrieve: (id) => ({
+          id,
+          status: "live",
+          websocketUrl: "wss://ws?token=t",
+          sessionViewerUrl: "",
+          timeout: 300_000,
+        }),
+      });
+      const step = createFakeStep();
+
+      await expect(
+        withSteelSession(asStep(step), { steel }, async () => null),
+      ).rejects.toThrow("release exploded");
+    });
+
+    test("release failure propagates when the session cannot be retrieved", async () => {
+      const steel = createFakeSteel({
+        onRelease() {
+          throw new Error("release exploded");
+        },
+        // Default retrieve rejects as not found.
+      });
+      const step = createFakeStep();
+
+      await expect(
+        withSteelSession(asStep(step), { steel }, async () => null),
+      ).rejects.toThrow("release exploded");
+    });
+  });
+
   describe("step prefixing", () => {
     test("default prefix is 'steel'", async () => {
       const steel = createFakeSteel();
@@ -462,7 +616,6 @@ describe("withSteelSession", () => {
   describe("API key resolution", () => {
     test("no resolvable key -> error names both remedies (option + env)", async () => {
       delete process.env.STEEL_API_KEY;
-      const steel = createFakeSteel();
       const step = createFakeStep();
 
       // NO_API_KEY_ERROR already names both the option and the env var;
@@ -471,8 +624,8 @@ describe("withSteelSession", () => {
         withSteelSession(asStep(step), {}, async () => null),
       ).rejects.toThrow(NO_API_KEY_ERROR);
 
-      // And no session was created before the error.
-      expect(steel.calls.create).toHaveLength(0);
+      // And no step ran before the error, so no session could be created.
+      expect(step.runs).toHaveLength(0);
     });
 
     test("a provided client's key is used for connectUrl when no explicit key/env", async () => {

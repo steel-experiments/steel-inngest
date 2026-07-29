@@ -1,3 +1,5 @@
+// ABOUTME: Inngest v4 dependency-injection middleware that injects a configured
+// ABOUTME: Steel client as ctx.steel (raw class plus configuring factory).
 import { Middleware, type Inngest } from "inngest";
 import type { Steel } from "steel-sdk";
 import type { SteelMiddlewareOptions } from "./types.js";

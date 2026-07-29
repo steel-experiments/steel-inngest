@@ -1,3 +1,5 @@
+// ABOUTME: Unit tests for steelScrape and mapScrapeResult: requested formats,
+// ABOUTME: null-safe mapping, key resolution, and client option exclusivity.
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { mapScrapeResult, steelScrape } from "../src/scrape.js";
 import { NO_API_KEY_ERROR } from "../src/internal.js";
@@ -48,11 +50,14 @@ describe("steelScrape", () => {
     restoreEnv("STEEL_API_KEY", SAVED_KEY);
   });
 
-  test("calls scrape with { url } and maps the result", async () => {
+  test("requests html and markdown for the URL and maps the result", async () => {
     const steel = createFakeSteel();
     const result = await steelScrape("https://example.com", { steel });
+    // Steel defaults to html-only; the result type promises markdown too, so
+    // both formats must be requested explicitly.
     expect(steel.calls.scrape[0]?.params).toEqual({
       url: "https://example.com",
+      format: ["html", "markdown"],
     });
     expect(result).toEqual({
       html: expect.any(String),

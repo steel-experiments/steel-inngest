@@ -1,3 +1,5 @@
+// ABOUTME: Integration tests running withSteelSession through @inngest/test replays:
+// ABOUTME: lifecycle ordering and secret-free checkpoints.
 import { InngestTestEngine } from "@inngest/test";
 import { Inngest } from "inngest";
 import { expect, test } from "vitest";

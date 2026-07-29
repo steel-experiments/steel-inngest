@@ -1,6 +1,11 @@
 const publicApi = require("steel-inngest");
 
-const expected = ["steelMiddleware", "steelScrape", "withSteelSession"];
+const expected = [
+  "SteelMiddleware",
+  "steelMiddleware",
+  "steelScrape",
+  "withSteelSession",
+];
 const actual = Object.keys(publicApi).sort();
 
 if (JSON.stringify(actual) !== JSON.stringify(expected)) {

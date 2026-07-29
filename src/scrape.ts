@@ -1,3 +1,5 @@
+// ABOUTME: One-shot Steel scrape of a URL, returning a null-safe result with html,
+// ABOUTME: markdown, title, and status code. Composes directly with step.run.
 import type { SteelScrapeOptions, SteelScrapeResult } from "./types.js";
 import { assertExclusiveSteelClient, createSteelClient } from "./internal.js";
 
@@ -36,7 +38,12 @@ export async function steelScrape(
   const client =
     options.steel ??
     createSteelClient({ apiKey: options.apiKey, baseUrl: options.baseUrl });
-  const response = (await client.scrape({ url })) as SteelScrapeResponse;
+  // Steel defaults to html-only; request both formats the result type
+  // promises so `markdown` is populated.
+  const response = (await client.scrape({
+    url,
+    format: ["html", "markdown"],
+  })) as SteelScrapeResponse;
   return mapScrapeResult(response);
 }
 

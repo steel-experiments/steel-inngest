@@ -1,3 +1,5 @@
+// ABOUTME: Compile-time and runtime tests for the public option/result types and
+// ABOUTME: their mutual-exclusivity unions.
 import { describe, expect, expectTypeOf, test } from "vitest";
 import type { Steel } from "steel-sdk";
 import type {

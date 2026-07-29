@@ -1,3 +1,5 @@
+// ABOUTME: tsup build configuration producing the dual ESM/CJS bundles and type
+// ABOUTME: declarations in dist/.
 import { defineConfig } from "tsup";
 
 export default defineConfig({
