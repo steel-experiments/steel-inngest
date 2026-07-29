@@ -1,8 +1,11 @@
+// ABOUTME: Package entry point: re-exports the public steel-inngest runtime API
+// ABOUTME: (middleware, durable sessions, scrape) and the public option/result types.
 /**
  * steel-inngest — Durable Steel browser sessions inside Inngest functions.
  *
- * Three exports:
- * - {@link steelMiddleware} — inject a configured Steel client as `ctx.steel`.
+ * Exports:
+ * - {@link steelMiddleware} / {@link SteelMiddleware} — inject a configured
+ *   Steel client as `ctx.steel`.
  * - {@link withSteelSession} — run a handler inside a durable Steel session.
  * - {@link steelScrape} — one-shot scrape.
  *
@@ -11,7 +14,7 @@
 
 export { withSteelSession } from "./session.js";
 export { steelScrape } from "./scrape.js";
-export { steelMiddleware } from "./middleware.js";
+export { steelMiddleware, SteelMiddleware } from "./middleware.js";
 
 export type {
   SteelSessionHandle,

@@ -1,3 +1,5 @@
+// ABOUTME: Packs the package from a clean copy and verifies the tarball contents,
+// ABOUTME: consumer typechecks (Bundler, Node16 ESM/CJS), and runtime imports.
 import { spawnSync } from "node:child_process";
 import {
   cpSync,
@@ -12,6 +14,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parsePackOutput } from "./parse-pack-output.mjs";
 
 const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const fixtureRoot = join(projectRoot, "test", "fixtures", "package-consumer");
@@ -37,22 +40,6 @@ function run(command, args, cwd) {
   }
 
   return result.stdout;
-}
-
-function parsePackOutput(output) {
-  for (
-    let start = output.lastIndexOf("[");
-    start >= 0;
-    start = output.lastIndexOf("[", start - 1)
-  ) {
-    try {
-      return JSON.parse(output.slice(start));
-    } catch {
-      // Lifecycle scripts may write to stdout before npm emits its JSON result.
-    }
-  }
-
-  throw new Error(`npm pack did not emit a JSON result:\n${output}`);
 }
 
 function linkPeerDependency(name) {

@@ -1,3 +1,5 @@
+// ABOUTME: Compile-time tests that registering steelMiddleware types ctx.steel as
+// ABOUTME: the Steel client in handlers without casts.
 import { expectTypeOf, test } from "vitest";
 import { Inngest } from "inngest";
 import type { Steel } from "steel-sdk";

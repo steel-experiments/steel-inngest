@@ -1,3 +1,5 @@
+// ABOUTME: Test doubles for the unit suites: a fake Steel client with call logs and
+// ABOUTME: a memoizing fake Inngest step, plus an env-restoring helper.
 import type { Steel } from "steel-sdk";
 
 /**
@@ -11,6 +13,7 @@ import type { Steel } from "steel-sdk";
 export interface FakeSteelCalls {
   create: { params: Record<string, unknown> }[];
   release: { id: string }[];
+  retrieve: { id: string }[];
   scrape: { params: Record<string, unknown> }[];
 }
 
@@ -46,6 +49,8 @@ export interface CreateFakeSteelOptions {
   onCreate?: (params: Record<string, unknown>) => void;
   /** Observe session release in lifecycle/integration tests. */
   onRelease?: (id: string) => void;
+  /** Respond to `sessions.retrieve`; defaults to rejecting as not found. */
+  retrieve?: (id: string) => FakeSteelSession | Promise<FakeSteelSession>;
 }
 
 /**
@@ -55,7 +60,12 @@ export interface CreateFakeSteelOptions {
 export function createFakeSteel(
   options: CreateFakeSteelOptions = {},
 ): FakeSteel {
-  const calls: FakeSteelCalls = { create: [], release: [], scrape: [] };
+  const calls: FakeSteelCalls = {
+    create: [],
+    release: [],
+    retrieve: [],
+    scrape: [],
+  };
   let n = 0;
   const nextId = options.nextId ?? (() => `sess-${++n}`);
 
@@ -85,6 +95,13 @@ export function createFakeSteel(
         calls.release.push({ id });
         options.onRelease?.(id);
         return { id, status: "released" };
+      },
+      async retrieve(id: string): Promise<FakeSteelSession> {
+        calls.retrieve.push({ id });
+        if (options.retrieve === undefined) {
+          throw new Error(`No session found with ID: ${id}`);
+        }
+        return options.retrieve(id);
       },
     },
     async scrape(

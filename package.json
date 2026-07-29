@@ -1,6 +1,6 @@
 {
   "name": "steel-inngest",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Durable Steel browser sessions inside Inngest functions.",
   "author": "Steel",
   "license": "MIT",

@@ -1,3 +1,5 @@
+// ABOUTME: ESLint flat config: typescript-eslint recommended rules across src,
+// ABOUTME: test, examples, and scripts.
 import eslint from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";

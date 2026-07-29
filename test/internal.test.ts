@@ -1,3 +1,5 @@
+// ABOUTME: Unit tests for internal helpers: key resolution, client construction,
+// ABOUTME: connect URLs, env restore, timeouts, and deterministic session IDs.
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import {
   buildConnectUrl,
@@ -28,11 +30,6 @@ describe("resolveApiKey", () => {
     delete process.env.STEEL_API_KEY;
     process.env.STEEL_API_KEY = "env-key";
     expect(resolveApiKey(undefined)).toBe("env-key");
-  });
-
-  test("falls back to a provided client key", () => {
-    delete process.env.STEEL_API_KEY;
-    expect(resolveApiKey(undefined, "client-key")).toBe("client-key");
   });
 
   test("no key anywhere -> error naming both remedies", () => {

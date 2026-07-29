@@ -1,3 +1,5 @@
+// ABOUTME: Integration test running steelMiddleware through the real @inngest/test
+// ABOUTME: middleware pipeline to prove ctx.steel carries the configured client.
 import { expect, test } from "vitest";
 import { Inngest } from "inngest";
 import { InngestTestEngine } from "@inngest/test";

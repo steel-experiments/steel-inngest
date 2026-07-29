@@ -1,3 +1,5 @@
+// ABOUTME: A real Steel price monitor served through Inngest's Node adapter; the
+// ABOUTME: manual live-E2E flow described in the README.
 /**
  * A real Steel price monitor served through Inngest's Node adapter.
  *

@@ -85,7 +85,7 @@ Steel session after the handler succeeds.
 
 ## API
 
-The package has three runtime exports.
+The package has four runtime exports.
 
 ### `steelMiddleware(options?)`
 
@@ -100,6 +100,9 @@ steelMiddleware({
 
 The API key defaults to `STEEL_API_KEY`. Missing credentials fail during
 middleware construction.
+
+The raw `SteelMiddleware` class is also exported: pass it directly to
+`middleware: [SteelMiddleware]` when `STEEL_API_KEY` is set in the environment.
 
 ### `withSteelSession(step, options, handler)`
 

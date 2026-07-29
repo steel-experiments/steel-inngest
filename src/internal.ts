@@ -1,3 +1,5 @@
+// ABOUTME: Internal helpers: API key resolution, client construction, connect-URL
+// ABOUTME: building, configuration fingerprinting, timeouts, and UUIDv5 session IDs.
 import { createHash } from "node:crypto";
 import { Steel } from "steel-sdk";
 
@@ -58,16 +60,11 @@ export function assertExclusiveSteelClient(options: {
 }
 
 /**
- * Resolve a Steel API key from (in order) an explicit option, the
- * `STEEL_API_KEY` environment variable, or an optional fallback (e.g. a
- * pre-built client's stored key). Throws {@link NO_API_KEY_ERROR} if none is
- * found.
+ * Resolve a Steel API key from an explicit option or the `STEEL_API_KEY`
+ * environment variable. Throws {@link NO_API_KEY_ERROR} if neither is set.
  */
-export function resolveApiKey(
-  explicit?: string,
-  fallback?: string | null,
-): string {
-  const key = explicit ?? process.env.STEEL_API_KEY ?? fallback ?? undefined;
+export function resolveApiKey(explicit?: string): string {
+  const key = explicit ?? process.env.STEEL_API_KEY;
   if (!key) {
     throw new Error(NO_API_KEY_ERROR);
   }

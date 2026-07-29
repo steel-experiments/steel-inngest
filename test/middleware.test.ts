@@ -1,7 +1,10 @@
+// ABOUTME: Unit tests for the SteelMiddleware class and steelMiddleware factory:
+// ABOUTME: class shape, ctx injection, and construction-time key resolution.
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { Middleware, type Inngest } from "inngest";
 import { steelMiddleware, SteelMiddleware } from "../src/middleware.js";
 import { NO_API_KEY_ERROR } from "../src/internal.js";
+import { restoreEnv } from "./helpers.js";
 
 const SAVED_KEY = process.env.STEEL_API_KEY;
 
@@ -21,10 +24,10 @@ function inputArgs(
 
 describe("steelMiddleware", () => {
   beforeEach(() => {
-    process.env.STEEL_API_KEY = SAVED_KEY;
+    restoreEnv("STEEL_API_KEY", SAVED_KEY);
   });
   afterEach(() => {
-    process.env.STEEL_API_KEY = SAVED_KEY;
+    restoreEnv("STEEL_API_KEY", SAVED_KEY);
   });
 
   test("the raw class is a Middleware.BaseMiddleware subclass", () => {

@@ -1,3 +1,5 @@
+// ABOUTME: Public option and result types for the package: session handles and the
+// ABOUTME: options unions for withSteelSession, steelMiddleware, and steelScrape.
 import type { Steel } from "steel-sdk";
 
 /**
