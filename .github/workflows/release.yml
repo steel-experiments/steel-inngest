@@ -1,0 +1,53 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+
+      - name: Verify tag matches package version
+        run: |
+          node --input-type=module -e '
+            import manifest from "./package.json" with { type: "json" };
+            const expected = `v${manifest.version}`;
+            const actual = process.env.GITHUB_REF_NAME;
+            if (actual !== expected) {
+              throw new Error(`Tag ${actual} does not match package version ${expected}`);
+            }
+          '
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify source
+        run: npm run check
+
+      - name: Verify package consumers
+        run: npm run check:package
+
+      - name: Publish with trusted publishing
+        run: npm publish

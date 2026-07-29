@@ -1,0 +1,51 @@
+name: Bug report
+description: Report reproducible behavior in steel-inngest
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include Steel API keys, `connectUrl` values, or other credentials.
+  - type: input
+    id: version
+    attributes:
+      label: steel-inngest version
+      placeholder: 0.3.0
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Include Node.js, Inngest, and steel-sdk versions.
+      placeholder: Node 24, Inngest 4.13.0, steel-sdk 0.18.0
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide the smallest code sample or repository that reproduces the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: checkboxes
+    id: secrets
+    attributes:
+      label: Credential check
+      options:
+        - label: I removed API keys, connection URLs, and session credentials.
+          required: true

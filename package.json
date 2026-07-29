@@ -1,0 +1,94 @@
+{
+  "name": "steel-inngest",
+  "version": "0.3.1",
+  "description": "Durable Steel browser sessions inside Inngest functions.",
+  "author": "Steel",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "ARCHITECTURE.md",
+    "CHANGELOG.md",
+    "dist"
+  ],
+  "scripts": {
+    "test": "npm run typecheck && vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm test && npm run lint && npm run format:check && npm audit",
+    "build": "tsup",
+    "check:package": "node scripts/verify-package.mjs",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run check && npm run check:package",
+    "example:price-monitor": "npm run example:server",
+    "example:server": "tsx --env-file-if-exists=.env examples/server.ts"
+  },
+  "peerDependencies": {
+    "inngest": ">=4 <5",
+    "steel-sdk": "^0.18.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@inngest/test": "^1.0.0",
+    "eslint": "^10.8.0",
+    "globals": "^17.8.0",
+    "inngest": "^4.0.0",
+    "playwright-core": "^1.49.0",
+    "prettier": "^3.9.6",
+    "steel-sdk": "^0.18.0",
+    "tsup": "^8.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "esbuild": "^0.28.1",
+    "gaxios": "^7.3.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steel-experiments/steel-inngest.git"
+  },
+  "homepage": "https://github.com/steel-experiments/steel-inngest#readme",
+  "bugs": {
+    "url": "https://github.com/steel-experiments/steel-inngest/issues"
+  },
+  "keywords": [
+    "steel",
+    "inngest",
+    "browser",
+    "automation",
+    "scraping",
+    "cdp",
+    "playwright",
+    "puppeteer",
+    "durable",
+    "background-job"
+  ],
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "fsevents@2.3.3": true,
+    "protobufjs@7.6.5": true
+  }
+}

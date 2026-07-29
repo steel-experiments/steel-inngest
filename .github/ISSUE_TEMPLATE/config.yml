@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Steel support
+    url: https://docs.steel.dev/overview/need-help
+    about: Get help with Steel sessions, API access, or account configuration.
+  - name: Security vulnerability
+    url: https://github.com/steel-experiments/steel-inngest/security/advisories/new
+    about: Report a vulnerability privately.
